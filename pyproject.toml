@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "novelty detection"
+name = "novelty_detection"
 version = "0.0.1"
 authors = [
   { name="Eduard Almar", email="edu12due@gmail.com" },
