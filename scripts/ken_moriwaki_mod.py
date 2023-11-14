@@ -10,6 +10,7 @@ from sklearn.metrics import ConfusionMatrixDisplay
 from sklearn.metrics import average_precision_score
 import matplotlib.pyplot as plt
 from matplotlib import animation, colors
+from novelty_detection.data import _file_path
 
 #python -m venv venv
 #\venv\Scripts\activate
@@ -20,7 +21,7 @@ from matplotlib import animation, colors
 # Dua, D. and Graff, C. (2019). UCI Machine Learning Repository [http://archive.ics.uci.edu/ml]. 
 # Irvine, CA: University of California, School of Information and Computer Science.
 
-data_file = "data_banknote_authentication.txt"
+data_file = _file_path("banknote_authentication.txt")
 data_x = np.loadtxt(data_file, delimiter=",", skiprows=0, usecols=range(0,4) ,dtype=np.float64)
 data_y = np.loadtxt(data_file, delimiter=",", skiprows=0, usecols=(4,),dtype=np.int64)
 
@@ -112,7 +113,7 @@ num_rows = 10
 num_cols = 10
 max_m_dsitance = 4
 max_learning_rate = 0.5
-max_steps = int(7*10e3) # Multiplies by 10
+max_steps = int(1*10e3) # Multiplies by 10
 
 # num_nurons = 5*np.sqrt(train_x.shape[0])
 # grid_size = ceil(np.sqrt(num_nurons))
