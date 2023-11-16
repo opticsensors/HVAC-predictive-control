@@ -1,11 +1,10 @@
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
 
 class SOM():
     def __init__(self, 
                  som_grid_size=(10,10), 
-                 learning_rate=1, 
-                 sigma=1, 
+                 learning_rate_0=1, 
+                 sigma_0=1, 
                  max_iter=10000,
                  max_distance=4,
                  sigma_decay=0.1,
@@ -18,8 +17,8 @@ class SOM():
 
         # Initialize descriptive features of SOM
         self.som_grid_size = som_grid_size
-        self.learning_rate = learning_rate
-        self.sigma = sigma
+        self.learning_rate_0 = learning_rate_0 #initial value of learning rate
+        self.sigma_0 = sigma_0 # initial value of sigma
         self.max_iter = max_iter
         self.max_distance = max_distance
         self.sigma_decay = sigma_decay
@@ -82,7 +81,7 @@ class SOM():
             neighborhood[bmu_distance <= neighborhood_range] = 1
 
         elif method=='exp':
-            neighborhood = np.exp(-(bmu_distance ** 2/ (2*self.sigma ** 2)))
+            neighborhood = np.exp(-(bmu_distance ** 2/ (2*self.sigma_0 ** 2)))
         
         elif method=='mult':
             neighborhood = sigma * bmu_distance
@@ -92,21 +91,25 @@ class SOM():
     def update_sigma_and_learning_rate(self, n_iter, method='linear'):
 
         if method=='exp':
-            sigma = self.sigma * np.exp(-(n_iter * self.sigma_decay))
-            learning_rate = self.learning_rate * np.exp(-(n_iter * self.learning_rate_decay))
+            sigma = self.sigma_0 * np.exp(-(n_iter * self.sigma_decay))
+            learning_rate = self.learning_rate_0 * np.exp(-(n_iter * self.learning_rate_decay))
 
         elif method=='linear':
             sigma = 1.0 - (n_iter/self.total_iterations)
-            learning_rate = sigma * self.learning_rate
+            learning_rate = sigma * self.learning_rate_0
+        
+        elif method=='constant':
+            sigma = self.sigma_0
+            learning_rate = self.learning_rate_0
 
         return sigma, learning_rate
 
-    def step(self, X_row, learning_rate, sigma):
+    def update_som(self, X_row, som, learning_rate, sigma):
         """
-        Do one step of training on the given input vector.
+        update som given input vector.
         """
         # Find location (coordinates) of best matching unit
-        bmu = self.find_bmu(X_row, self.som)
+        bmu = self.find_bmu(X_row, som)
 
         bmu_distance = self.bmu_distance(bmu, 
                                          self.methods['bmu_distance'])
@@ -117,140 +120,64 @@ class SOM():
                                                  self.methods['compute_neighborhood'])
 
         # Multiply by difference between input and weights (learning matrix)
-        delta = learning_rate * neighborhood * (X_row - self.som)
+        delta = learning_rate * neighborhood * (X_row - som)
 
         # Update weights
-        self.som += delta
+        som += delta
+        return som
 
-    def fit_with_epochs(self, X, epochs=1):
+    def fit(self, X, epochs=None):
         """
         Take data (2d array) as input and fit the SOM to that
         data for the specified number of epochs.
         """
-        # Count total number of iterations
+        # Define and init variables
         global_iter_counter = 0
         n_samples = X.shape[0]
         dim = X.shape[1]
         self.som_size = self.som_grid_size + (dim,)
-        self.som = self.init_som(self.som_size, self.methods['init_som'])
-        learning_rate = self.learning_rate
-        sigma = self.sigma
-        self.total_iterations = np.minimum(epochs * n_samples, self.max_iter)
+        som = self.init_som(self.som_size, self.methods['init_som'])
+        learning_rate = self.learning_rate_0
+        sigma = self.sigma_0
 
-        for epoch in range(epochs):
-            # Break if past max number of iterations
-            if global_iter_counter > self.max_iter:
-                break
+        if epochs is None:
+            self.total_iterations = self.max_iter
 
-            indices = self.rng.permutation(n_samples)
+            for global_iter_counter in range(self.max_iter):
+                # Train
+                idx = self.rng.integers(n_samples)
+                X_row = X[idx]
+                # Do one step of training
+                som = self.update_som(X_row, som, learning_rate, sigma)
+                # Update learning rate and sigma
+                sigma, learning_rate = self.update_sigma_and_learning_rate(global_iter_counter, 
+                                                                    self.methods['update_sigma_and_learning_rate'])
+        else:
+            self.total_iterations = np.minimum(epochs * n_samples, self.max_iter)
 
-            # Train
-            for idx in indices:
+            for epoch in range(epochs):
                 # Break if past max number of iterations
                 if global_iter_counter > self.max_iter:
                     break
-                X_row = X[idx]
-                # Do one step of training
-                self.step(X_row, learning_rate, sigma)
-                # Update learning rate and sigma
-                global_iter_counter += 1
-                sigma, learning_rate = self.update_sigma_and_learning_rate(global_iter_counter, 
-                                                                           self.methods['update_sigma_and_learning_rate'])
 
-        return self
+                indices = self.rng.permutation(n_samples)
 
-    def fit_with_iterations(self, X):
-        """
-        Take data (2d array) as input and fit the SOM to that
-        data for the specified number of epochs.
-        """
-        # Count total number of iterations
-        global_iter_counter = 0
-        n_samples = X.shape[0]
-        dim = X.shape[1]
-        self.som_size = self.som_grid_size + (dim,)
-        self.som = self.init_som(self.som_size, self.methods['init_som'])
-        learning_rate = self.learning_rate
-        sigma = self.sigma
-        self.total_iterations = self.max_iter
-
-        for global_iter_counter in range(self.max_iter):
-            # Train
-            idx = self.rng.integers(n_samples)
-            X_row = X[idx]
-            # Do one step of training
-            self.step(X_row, learning_rate, sigma)
-            # Update learning rate and sigma
-            global_iter_counter += 1
-            sigma, learning_rate = self.update_sigma_and_learning_rate(global_iter_counter, 
-                                                                       self.methods['update_sigma_and_learning_rate'])
+                # Train
+                for idx in indices:
+                    # Break if past max number of iterations
+                    if global_iter_counter > self.max_iter:
+                        break
+                    X_row = X[idx]
+                    # Do one step of training
+                    som = self.step(X_row, som, learning_rate, sigma)
+                    # Update learning rate and sigma
+                    global_iter_counter += 1
+                    sigma, learning_rate = self.update_sigma_and_learning_rate(global_iter_counter, 
+                                                                            self.methods['update_sigma_and_learning_rate'])
+        # Save som, learning rate and sigma after training
+        self.som = som
+        self.learning_rate_final = learning_rate
+        self.sigma_final = sigma
 
         return self
     
-class KNN_NoveltyDetection():
-    """"
-    This class uses provides an implementation of SOM for anomaly detection.
-    """
-
-    def __init__(
-                self,
-                som,
-                min_number_per_bmu=1,
-                number_of_neighbors=3,
-                ):
-
-        self.som = som
-        self.min_number_per_bmu = min_number_per_bmu
-        self.number_of_neighbors = number_of_neighbors
-
-    def find_bmu(self, X_row, som):
-        """
-        Find the index of the best matching unit for the input vector X_row.
-        """
-        # min coordinates are the same for distance and the square of distance 
-        distances = np.square(som - X_row).sum(axis=2)
-        bmu_coordinates = np.unravel_index(distances.argmin().astype(int), self.som_grid_size)
-        
-        return bmu_coordinates
-
-    def find_bmu_counts(self, X):
-        """
-        This functions maps a training set to the fitted network and evaluates for each
-        node in the SOM the number of evaluations mapped to that node. This gives counts per BMU.
-        :param training_data: numpy array of training data
-        :return: An array of the same shape as the network with the best matching units.
-        """
-        som_grid_shape = (self.som.shape[0], self.som.shape[1])
-        bmu_counts = np.zeros(shape=som_grid_shape)
-        for X_row in X:
-            bmu = self.find_bmu(X_row, self.som)
-            bmu_counts[bmu] += 1
-        return bmu_counts
-
-    def fit(self, X):
-        """
-        This function fits the anomaly detection model to some training data.
-        It removes nodes that are too sparse by the minNumberPerBmu threshold.
-        """
-        bmu_counts = self.find_bmu_counts(X)
-        self.bmu_counts = bmu_counts.flatten()
-        self.allowed_nodes = self.som[bmu_counts >= self.min_number_per_bmu]
-        return self
-
-    def evaluate(self, X):
-        """
-        This function maps the evaluation data to the previously fitted network. It calculates the
-        anomaly measure based on the distance between the observation and the K-NN nodes of this
-        observation.
-        """
-        try:
-            assert self.allowed_nodes.shape[0] > 1
-        except AssertionError:
-            raise Exception(
-                "There are no nodes satisfying the minimum criterium, algorithm cannot proceed."
-            )
-        else:
-            classifier = NearestNeighbors(n_neighbors=self.number_of_neighbors)
-            classifier.fit(self.allowed_nodes)
-            dist, _ = classifier.kneighbors(X)
-        return dist.mean(axis=1)
