@@ -67,7 +67,7 @@ class Quantization_Error(SOMmetrics):
 
         return dmax_map
 
-    def evaluate(self, X_train, X_test):
+    def evaluate(self, X_train, X_test, fiability=1):
         X_test = np.atleast_2d(X_test)
         df_train = self.find_bmu_and_dmin(X_train, self.som)
         self.freq_map = self.find_bmu_counts(X_train, self.som)
@@ -76,7 +76,7 @@ class Quantization_Error(SOMmetrics):
         df_test = self.find_bmu_and_dmin(X_test, self.som)
         Eq = df_test['dmin']
         Nd = np.zeros((X_test.shape[0],))
-        dmax_training = self.dmax_map[df_test['row'], df_test['col']]
+        dmax_training = fiability * self.dmax_map[df_test['row'], df_test['col']]
         Nd[Eq<=Eq_training] = 1
         condition = (Eq > Eq_training) & (Eq < dmax_training)
         Nd[condition] = 1 - (Eq[condition] - Eq_training) / (dmax_training[condition]  - Eq_training)
