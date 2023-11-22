@@ -1,6 +1,9 @@
 import numpy as np
 
 class SOM():
+    """
+    SOM class for Self-Organizing Maps.
+    """
     def __init__(self, 
                  som_grid_size=(10,10), 
                  learning_rate_0=1, 
@@ -14,6 +17,20 @@ class SOM():
                           'bmu_distance': 'cityblock',
                           'compute_neighborhood': 'ceil',
                           'update_sigma_and_learning_rate': 'linear'}):
+        
+        """Initializes a Self Organizing Maps.
+
+        Parameters:
+        - som_grid_size (tuple): Size of the SOM grid.
+        - learning_rate_0 (float): Initial learning rate.
+        - sigma_0 (float): Initial sigma.
+        - max_iter (int): Maximum number of iterations.
+        - max_distance (int): Maximum distance neighbourhood.
+        - sigma_decay (float): Sigma decay rate.
+        - learning_rate_decay (float): Learning rate decay rate.
+        - random_state (int): Random seed for reproducibility.
+        - methods (dict): Dictionary specifying initialization and computation methods.
+        """
 
         # Initialize descriptive features of SOM
         self.som_grid_size = som_grid_size
@@ -32,7 +49,14 @@ class SOM():
         
     def find_bmu(self, X_row, som):
         """
-        Find the index of the best matching unit for the input vector X_row.
+        Find the Best Matching Unit (BMU) for the input vector X_row.
+
+        Parameters:
+        - X_row (numpy.ndarray): Input vector.
+        - som (numpy.ndarray): Self-Organizing Map.
+
+        Returns:
+        - tuple: Coordinates of the BMU.
         """
         # min coordinates are the same for distance and the square of distance 
         distances = np.square(som - X_row).sum(axis=2)
@@ -42,7 +66,14 @@ class SOM():
     
     def init_som(self, som_size, distribution='uniform'):
         """
-        Initialize the weights of som (3d array)
+        Initialize the weights of the SOM.
+
+        Parameters:
+        - som_size (tuple): Size of the SOM.
+        - distribution (str): Type of distribution for weight initialization.
+
+        Returns:
+        - numpy.ndarray: Initialized SOM.
         """
         if distribution=='normal':
             som = self.rng.normal(size=som_size)
@@ -57,7 +88,14 @@ class SOM():
     
     def bmu_distance(self, bmu, distance='cityblock'):
         """
-        Computes distance from bmu coordinates to the rest of the som grid cell coordinates
+        Compute distance from BMU coordinates to the rest of the SOM grid cell coordinates.
+
+        Parameters:
+        - bmu (tuple): BMU coordinates.
+        - distance (str): Type of distance metric.
+
+        Returns:
+        - numpy.ndarray: BMU distances.
         """
         bmu_2darray = np.atleast_2d(bmu)
 
@@ -73,7 +111,15 @@ class SOM():
     
     def compute_neighborhood(self, bmu_distance, sigma, method='ceil'):
         """
-        Computes the neighborhood map that multiplies the learning matrix
+        Compute the neighborhood map that multiplies the learning matrix.
+
+        Parameters:
+        - bmu_distance (numpy.ndarray): BMU distances.
+        - sigma (float): Current value of sigma.
+        - method (str): Method for computing the neighborhood map.
+
+        Returns:
+        - numpy.ndarray: Neighborhood map.
         """
         if method=='ceil':
             neighborhood_range = np.ceil(sigma * self.max_distance)
@@ -89,7 +135,16 @@ class SOM():
         return neighborhood[..., np.newaxis]
     
     def update_sigma_and_learning_rate(self, n_iter, method='linear'):
+        """
+        Update sigma and learning rate based on the current iteration.
 
+        Parameters:
+        - n_iter (int): Current iteration.
+        - method (str): Method for updating sigma and learning rate.
+
+        Returns:
+        - tuple: Updated sigma and learning rate.
+        """
         if method=='exp':
             sigma = self.sigma_0 * np.exp(-(n_iter * self.sigma_decay))
             learning_rate = self.learning_rate_0 * np.exp(-(n_iter * self.learning_rate_decay))
@@ -102,11 +157,24 @@ class SOM():
             sigma = self.sigma_0
             learning_rate = self.learning_rate_0
 
+        elif method=='mini_som':
+            sigma = self.sigma_0 / (1+self.sigma_decay/(self.max_iter/2))
+            learning_rate = self.learning_rate_0 / (1+self.learning_rate_decay/(self.max_iter/2))
+
         return sigma, learning_rate
 
     def update_som(self, X_row, som, learning_rate, sigma):
         """
-        update som given input vector.
+        Update the SOM given an input vector.
+
+        Parameters:
+        - X_row (numpy.ndarray): Input vector.
+        - som (numpy.ndarray): Self-Organizing Map.
+        - learning_rate (float): Learning rate.
+        - sigma (float): Sigma.
+
+        Returns:
+        - numpy.ndarray: Updated SOM.
         """
         # Find location (coordinates) of best matching unit
         bmu = self.find_bmu(X_row, som)
@@ -128,8 +196,15 @@ class SOM():
 
     def fit(self, X, epochs=None):
         """
-        Take data (2d array) as input and fit the SOM to that
-        data for the specified number of epochs.
+        Train the SOM using input data for a specified number of epochs.
+        If Epochs is None, it does a total of max_iter of random samples.
+
+        Parameters:
+        - X (numpy.ndarray): Input data (2D array).
+        - epochs (int): Number of training epochs.
+
+        Returns:
+        - SOM: Trained SOM object.
         """
         # Define and init variables
         global_iter_counter = 0

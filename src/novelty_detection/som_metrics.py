@@ -4,11 +4,23 @@ import pandas as pd
 from novelty_detection.utils import argmin_first_two_axes
 
 class SOMmetrics():
+    """
+    SOMmetrics class for analyzing and evaluating Self-Organizing Maps (SOMs).
 
+    """
     def __init__(
                 self,
                 som,
                 ):
+        """
+        Parameters:
+        - som (numpy.ndarray): The Self-Organizing Map.
+
+        Attributes:
+        - som (numpy.ndarray): The Self-Organizing Map.
+        - som_grid_size (tuple): The grid size of the SOM.
+        - som_size (tuple): The size of the SOM.
+        """
 
         self.som = som
         self.som_grid_size = (som.shape[0], som.shape[1])
@@ -16,7 +28,14 @@ class SOMmetrics():
 
     def find_bmu(self, X_row, som):
         """
-        Find the index of the best matching unit for the input vector X_row.
+        Find the Best Matching Unit (BMU) for the input vector X_row.
+
+        Parameters:
+        - X_row (numpy.ndarray): Input vector.
+        - som (numpy.ndarray): Self-Organizing Map.
+
+        Returns:
+        - tuple: Coordinates of the BMU.
         """
         # min coordinates are the same for distance and the square of distance 
         distances = np.square(som - X_row).sum(axis=2)
@@ -26,7 +45,14 @@ class SOMmetrics():
     
     def find_two_bmu(self, X_row, som):
         """
-        Find the index of the best two matching units for the input vector X_row.
+        Find the indices of the two Best Matching Units (BMUs) for the input vector X_row.
+
+        Parameters:
+        - X_row (numpy.ndarray): Input vector.
+        - som (numpy.ndarray): Self-Organizing Map.
+
+        Returns:
+        - tuple: Coordinates of the first BMU, Coordinates of the second BMU.
         """
         # min coordinates are the same for distance and the square of distance 
         distances = np.square(som - X_row).sum(axis=2)
@@ -46,8 +72,14 @@ class SOMmetrics():
 
     def find_bmu_counts(self, X, som):
         """
-        This functions maps a training set to the fitted network and evaluates for each
-        node in the SOM the number of evaluations mapped to that node. This gives counts per BMU.
+        Map a training set to the fitted network and evaluate the number of hits for each node in the SOM.
+
+        Parameters:
+        - X (numpy.ndarray): Training set.
+        - som (numpy.ndarray): Self-Organizing Map.
+
+        Returns:
+        - numpy.ndarray: Number of hits for each BMU in the SOM.
         """
         bmu_counts = np.zeros(shape=self.som_grid_size)
         for X_row in X:
@@ -63,6 +95,16 @@ class SOMmetrics():
         return bmu_counts
 
     def quantization_error(self, X, som):
+        """
+        Compute the Quantization Error for a SOM given a sample or a set of samples.
+
+        Parameters:
+        - X (numpy.ndarray): Input samples.
+        - som (numpy.ndarray): Self-Organizing Map.
+
+        Returns:
+        - float: Quantization Error.
+        """
         X = np.atleast_2d(X)
         total_error = 0.0
         for row in X:
@@ -81,7 +123,16 @@ class SOMmetrics():
         return quantization_err
     
     def topographic_error(self, X, som): #TODO
-        """Compute the Topographical Error for a SOM."""
+        """
+        Compute the Topographical Error for a SOM given a sample or a set of samples.
+
+        Parameters:
+        - X (numpy.ndarray): Input samples.
+        - som (numpy.ndarray): Self-Organizing Map.
+
+        Returns:
+        - float: Topographical Error.
+        """
         X = np.atleast_2d(X)
         total_error = 0
         for sample in X:
@@ -94,6 +145,16 @@ class SOMmetrics():
         return quantization_err
 
     def find_dmin(self, X, som):
+        """
+        Map a set of samples to the neurons of the SOM and find the minimum distance for each sample.
+
+        Parameters:
+        - X (numpy.ndarray): Input samples.
+        - som (numpy.ndarray): Self-Organizing Map.
+
+        Returns:
+        - list: List of minimum distances for each sample.
+        """
         X = np.atleast_2d(X)
         l_dmin = []
 
@@ -104,6 +165,18 @@ class SOMmetrics():
         return l_dmin
     
     def find_bmu_and_dmin(self, X, som):
+        """
+        Map a set of samples to the neurons of the SOM and find the coordinates of their BMU
+        along with the minimum distance associated with the BMU.
+
+        Parameters:
+        - X (numpy.ndarray): Input samples.
+        - som (numpy.ndarray): Self-Organizing Map.
+
+        Returns:
+        - pd.DataFrame: DataFrame with columns 'row' (BMU row coordinate), 
+                        'col' (BMU column coordinate), and 'dmin' (minimum distance).
+        """
         X = np.atleast_2d(X)
         l_dmin = []
         l_coord = []
@@ -119,6 +192,15 @@ class SOMmetrics():
         return df
 
     def find_dmin_min_and_max_by_units(self, df):
+        """
+        Find the minimum and maximum distances associated with hits for each neuron in the SOM.
+
+        Parameters:
+        - df (pd.DataFrame): DataFrame with columns 'row', 'col', and 'dmin'.
+
+        Returns:
+        - tuple: Numpy arrays representing the min and max distance maps.
+        """
         df_groupby_coord = df.groupby(['row', 'col'])['dmin'].agg([('Min' , 'min'), ('Max', 'max')])
         df_groupby_coord = df_groupby_coord.sort_values(by=['row', 'col'], ascending=True).reset_index()
 

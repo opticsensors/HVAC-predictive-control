@@ -4,7 +4,7 @@ from novelty_detection.som_metrics import SOMmetrics
 
 class KNN(SOMmetrics):
     """"
-    This class uses provides an implementation of SOM for anomaly detection.
+    KNN class for anomaly detection using Self-Organizing Maps.
     """
 
     def __init__(
@@ -13,16 +13,27 @@ class KNN(SOMmetrics):
                 min_number_per_bmu=1,
                 number_of_neighbors=3,
                 ):
+        """
+        Initialize the KNN object.
 
+        Parameters:
+        - som (numpy.ndarray): Fitted SOM.
+        - min_number_per_bmu (int): Minimum number of observations per BMU.
+        - number_of_neighbors (int): Number of neighbors for KNN.
+        """
         super().__init__(som)
         self.min_number_per_bmu = min_number_per_bmu
         self.number_of_neighbors = number_of_neighbors
 
     def evaluate(self, X):
         """
-        This function maps the evaluation data to the previously fitted network. It calculates the
-        anomaly measure based on the distance between the observation and the K-NN nodes of this
-        observation.
+        Evaluate anomaly measure based on the distance between observations and K-NN nodes.
+
+        Parameters:
+        - X (numpy.ndarray): Evaluation data.
+
+        Returns:
+        - numpy.ndarray: Anomaly measure.
         """
         bmu_counts = self.find_bmu_counts(X, self.som)
         allowed_nodes = self.som[bmu_counts >= self.min_number_per_bmu]
@@ -43,7 +54,7 @@ class KNN(SOMmetrics):
 
 class Quantization_Error(SOMmetrics):
     """"
-    This class uses provides an implementation of SOM for anomaly detection.
+    Quantization_Error class for anomaly detection using Self-Organizing Maps.
     """
 
     def __init__(
@@ -51,11 +62,28 @@ class Quantization_Error(SOMmetrics):
                 som,
                 method='worst'
                 ):
+        """
+        Initialize the Quantization_Error object.
 
+        Parameters:
+        - som (numpy.ndarray): Fitted SOM.
+        - method (str): Method for finding dmax.
+        """
         super().__init__(som)
         self.method = method
 
     def find_dmax(self, df, freq_map, method):
+        """
+        Find the maximum distance based on the specified method.
+
+        Parameters:
+        - df (pd.DataFrame): DataFrame containing BMU coordinates and dmin values.
+        - freq_map (numpy.ndarray): Frequency map of BMUs.
+        - method (str): Method for finding dmax.
+
+        Returns:
+        - numpy.ndarray: Maximum distance map.
+        """
         if method == 'worst':
             dmax = np.max(df['dmin'])
             dmax_map = np.full(self.som_grid_size, dmax)
@@ -68,6 +96,17 @@ class Quantization_Error(SOMmetrics):
         return dmax_map
 
     def evaluate(self, X_train, X_test, fiability=1):
+        """
+        Evaluate anomaly measure using quantization error.
+
+        Parameters:
+        - X_train (numpy.ndarray): Training data.
+        - X_test (numpy.ndarray): Test data.
+        - fiability (float): Fiability factor. Reduces the dmax value
+
+        Returns:
+        - numpy.ndarray: Anomaly measure.
+        """
         X_test = np.atleast_2d(X_test)
         df_train = self.find_bmu_and_dmin(X_train, self.som)
         self.freq_map = self.find_bmu_counts(X_train, self.som)
