@@ -24,6 +24,6 @@ def load_data(name, data_type=None, header_names=None, separator=','):
 
 def save_data(df, name, data_type='processed'):
     file_path=os.path.join(parameters.DATA_PATH, data_type, name)
-    df.to_csv(file_path, sep=',')
+    df.to_csv(file_path, sep=',', index=False)
 
 
