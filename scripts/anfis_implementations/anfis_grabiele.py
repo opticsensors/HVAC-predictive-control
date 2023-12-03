@@ -161,7 +161,8 @@ class ANFIS:
         self.c = theta[i2:i3]
 
         # Consequent function parameters (hyperplanes)
-        self.A = theta[i3:i4].reshape(self.n_inputs + 1, self.n_cf * self.n_outputs)
+        self.A = \
+            theta[i3:i4].reshape(self.n_inputs + 1, self.n_cf * self.n_outputs)
 
     def forward_steps(self, X, Xe):
         """
