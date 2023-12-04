@@ -1,3 +1,5 @@
+# https://github.com/gregorLen/AnfisTensorflow2.0/tree/master
+
 """
 MyAnfis Implementation
 Gregor Lenhard

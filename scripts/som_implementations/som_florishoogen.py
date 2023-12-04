@@ -1,9 +1,8 @@
-import math
+# https://github.com/FlorisHoogenboom/som-anomaly-detector/tree/master/som_anomaly_detector
 
+import math
 import numpy as np
 from scipy.stats import multivariate_normal
-
-#https://github.com/FlorisHoogenboom/som-anomaly-detector/tree/master/som_anomaly_detector
 
 class KohonenSom(object):
     """

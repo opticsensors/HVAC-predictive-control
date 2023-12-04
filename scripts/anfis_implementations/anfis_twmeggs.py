@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
+# https://github.com/twmeggs/anfis/tree/master
+
 """
 Created on Thu Apr 03 07:30:34 2014
 
 @author: tim.meggs
 
-# https://github.com/twmeggs/anfis/tree/master
 """
 import itertools
 import numpy as np

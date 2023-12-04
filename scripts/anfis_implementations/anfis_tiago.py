@@ -1,10 +1,11 @@
+# https://github.com/tiagoCuervo/TensorANFIS/tree/master
+
 import tensorflow as tf
 import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 import numpy as np
 import matplotlib.pyplot as plt
 
-# https://github.com/tiagoCuervo/TensorANFIS/tree/master
 
 class ANFIS:
 

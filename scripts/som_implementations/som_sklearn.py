@@ -1,8 +1,9 @@
+# Code adapted from: https://github.com/rileypsmith/sklearn-som/tree/main
+
 import numpy as np
 
 class SOM_rileypsmith():
     """
-    Code adapted from: https://github.com/rileypsmith/sklearn-som/tree/main
     The 2-D, rectangular grid self-organizing map class using Numpy.
     """
     def __init__(self, m=3, n=3, dim=3, lr=1, sigma=1, max_iter=3000,

@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+#    https://github.com/jfpower/anfis-pytorch
+
 '''
     ANFIS in torch: the ANFIS layers
     @author: James Power <james.power@mu.ie> Apr 12 18:13:10 2019
@@ -7,7 +7,6 @@
     useful in understanding how the ANFIS structures could be interpreted:
         https://github.com/twmeggs/anfis
 
-    https://github.com/jfpower/anfis-pytorch/blob/master/anfis.py
 '''
 
 import itertools

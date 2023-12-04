@@ -1,9 +1,8 @@
+# Adapted from: https://stackabuse.com/self-organizing-maps-theory-and-implementation-in-python-with-numpy/
+
 import numpy as np
 
 class SOM_stackabuse():
-  """
-  Adapted from: https://stackabuse.com/self-organizing-maps-theory-and-implementation-in-python-with-numpy/
-  """
   def __init__(self,
               step=3,
               learn_rate = .1, 
