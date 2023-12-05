@@ -7,37 +7,49 @@ class ANFIS(tf.keras.Model):
                  learning_rate=1e-2,
                  mf='gaussmf',
                  defuzz_method='proportional',
-                 loss_fun='mse'
+                 loss_fun='mse',
+                 init_method='uniform'
                  ):
         super(ANFIS, self).__init__()
         self.n = n_inputs
         self.m = n_rules
-        self.define_variables(mf, defuzz_method)
+        self.define_variables(mf, defuzz_method, init_method)
 
         self.mf = mf
         self.defuzz_method = defuzz_method
         self.loss_fun = loss_fun
+        self.init_method = init_method
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
-    def define_variables(self, mf, defuzz_method):
+    def define_variables(self, mf, defuzz_method, init_method):
+
+        def initialize_variable(shape, name, min_val=0, max_val=None):
+            if init_method == 'uniform':
+                return tf.Variable(tf.random.uniform(shape, minval=min_val, maxval=max_val), name=name)
+            elif init_method == 'normal':
+                return tf.Variable(tf.random.normal(shape), name=name)
+            else:
+                raise ValueError("Invalid initialization method")
+
         if mf == 'gaussmf':
-            self.mu = tf.Variable(tf.random.normal([self.m * self.n]), name="mu")
-            self.sigma = tf.Variable(tf.random.normal([self.m * self.n]), name="sigma")
+            self.mu = initialize_variable([self.m * self.n], "mu", -1.5, 1.5)
+            self.sigma = initialize_variable([self.m * self.n], "sigma", .7, 1.3)
 
         elif mf == 'gbellmf':
-            self.a = tf.Variable(tf.random.normal([self.m * self.n]), name="a")
-            self.b = tf.Variable(tf.random.normal([self.m * self.n]), name="b")
-            self.c = tf.Variable(tf.random.normal([self.m * self.n]), name="c")
+            self.a = initialize_variable([self.m * self.n], "a", .7, 1.3)
+            self.b = initialize_variable([self.m * self.n], "b", .7, 1.3)
+            self.c = initialize_variable([self.m * self.n], "c", -1.5, 1.5)
 
         if defuzz_method == 'proportional':
-            self.y = tf.Variable(tf.random.normal([1, self.m]), name="y")
+            self.y = initialize_variable([1, self.m], "y", -2, 2)
 
         elif defuzz_method == 'linear':
             #self.coefficients = tf.Variable(tf.random.normal([self.m, self.n]), name="coefficients")
             #self.intercepts = tf.Variable(tf.random.normal([self.n]), name="intercepts") 
-            self.coefficients = tf.Variable(tf.random.normal([self.m, self.m]), name="coefficients")
-            self.intercepts = tf.Variable(tf.random.normal([self.m]), name="intercepts") 
-            
+            self.coefficients = initialize_variable([self.m, self.m], "coefficients", -2, 2)
+            self.intercepts = initialize_variable([self.m], "intercepts", -2, 2)
+
+                
     def call(self, inputs):
         
         # Layer 1: membership layer
