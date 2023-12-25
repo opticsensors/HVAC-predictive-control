@@ -1,203 +1,111 @@
-"""
-Multivariate Regression and Classification Using an Adaptive Neuro-Fuzzy
-Inference System (Takagi-Sugeno) and Particle Swarm Optimization.
+import tensorflow as tf
 
-Copyright (c) 2020 Gabriele Gilardi
+class ANFIS(tf.keras.Model):
+    def __init__(self, 
+                 n_inputs, 
+                 n_rules, 
+                 learning_rate=1e-2,
+                 mf='gaussmf',
+                 defuzz_method='proportional',
+                 loss_fun='mse',
+                 init_method='uniform'
+                 ):
+        super(ANFIS, self).__init__()
+        self.n = n_inputs
+        self.m = n_rules
+        self.define_variables(mf, defuzz_method, init_method)
 
+        self.mf = mf
+        self.defuzz_method = defuzz_method
+        self.loss_fun = loss_fun
+        self.init_method = init_method
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
-X           (n_samples, n_inputs)       Input dataset (training)
-Xe          (n_inputs, n_pf)            Expanded input dataset (training)
-Y           (n_samples, n_outputs)      Output dataset (training)
-Xp          (n_samples, n_inputs)       Input dataset (prediction)
-Xpe         (n_inputs, n_pf)            Expanded input dataset (prediction)
-Yp          (n_samples, n_labels)       Output dataset (prediction)
-J           scalar                      Cost function
-theta       (n_var, )                   Unrolled parameters
-mu          (n_pf, )                    Mean (premise MFs)
-s           (n_pf, )                    Standard deviation (premise MFs)
-c           (n_pf, )                    Exponent (premise MFs)
-A           (n_inputs+1, n_cf)          Coefficients (consequent MFs)
-pf          (n_samples, n_pf)           Premise MFs value
-W           (n_samples, n_cf)           Firing strenght value
-Wr          (n_samples, n_cf)           Firing strenght ratios
-cf          (n_samples, n_cf)           Consequent MFs value
-f           (n_samples, n_outputs)      ANFIS output
-combs       (n_inputs, n_cf)            Combinations of premise MFs
+    def define_variables(self, mf, defuzz_method, init_method):
 
-n_samples           Number of samples
-n_inputs            Number of features in the original input dataset
-n_outputs           Number of labels/classes in the output dataset
-n_labels            Number of outputs in the original dataset
-n_var               Number of variables
-n_mf                Number of premise MFs of each feature
-n_pf                Total number of premise MFs
-n_cf                Total number of consequent MFs
+        def initialize_variable(shape, name, min_val=0, max_val=None):
+            if init_method == 'uniform':
+                return tf.Variable(tf.random.uniform(shape, minval=min_val, maxval=max_val), name=name)
+            elif init_method == 'normal':
+                return tf.Variable(tf.random.normal(shape), name=name)
+            else:
+                raise ValueError("Invalid initialization method")
 
-Notes:
-- MF stands for membership function.
-- premise (membership) functions are generalize Bell function defined by mean
-  <mu>, standard deviation <s>, and exponent <c>.
-- consequent (membership) functions are hyperplanes defined by <n_inputs+1>
-  coefficients each.
-"""
+        if mf == 'gaussmf':
+            self.mu = initialize_variable([self.m * self.n], "mu", -1.5, 1.5)
+            self.sigma = initialize_variable([self.m * self.n], "sigma", .7, 1.3)
 
-import numpy as np
-import itertools
+        elif mf == 'gbellmf':
+            self.a = initialize_variable([self.m * self.n], "a", .7, 1.3)
+            self.b = initialize_variable([self.m * self.n], "b", .7, 1.3)
+            self.c = initialize_variable([self.m * self.n], "c", -1.5, 1.5)
 
+        if defuzz_method == 'proportional':
+            self.y = initialize_variable([1, self.m], "y", -2, 2)
 
-class ANFIS:
+        elif defuzz_method == 'linear':
+            #self.coefficients = tf.Variable(tf.random.normal([self.m, self.n]), name="coefficients")
+            #self.intercepts = tf.Variable(tf.random.normal([self.n]), name="intercepts") 
+            self.coefficients = initialize_variable([self.m, self.m], "coefficients", -2, 2)
+            self.intercepts = initialize_variable([self.m], "intercepts", -2, 2)
 
-    def __init__(self, n_mf, n_outputs):
-        """
-        n_mf        (n_inputs, )        Number of MFs in each feature/input
-        n_outputs                       Number of labels/classes
-        """
-        self.n_mf = np.asarray(n_mf)
-        self.n_outputs = n_outputs
+                
+    def call(self, inputs):
+        
+        # Layer 1: membership layer
+        if self.mf == 'gaussmf':
+            membership_values = tf.exp(-0.5 * tf.square(tf.subtract(tf.tile(inputs, (1, self.m)), self.mu)) / tf.square(self.sigma))
 
-        self.n_inputs = len(n_mf)               # Number of features/inputs
-        self.n_pf = self.n_mf.sum()             # Number of premise MFs
-        self.n_cf = self.n_mf.prod()            # Number of consequent MFs
+        elif self.mf == 'gbellmf':
+            abs_val = tf.abs((tf.subtract(tf.tile(inputs, (1, self.m)), self.c)) / self.a)
+            membership_values = 1 / (1 + tf.pow(abs_val, 2 * self.b))
 
-        # Number of variables
-        self.n_var = 3 * self.n_pf + (self.n_inputs + 1) * self.n_cf * self.n_outputs
+        # Reshape the membership values for the rule layer
+        reshaped_membership_values = tf.reshape(membership_values, (-1, self.m, self.n))
 
-        self.init_prob = True                   # Initialization flag
-        self.Xe = np.array([])                  # Extended input array
+        # Layer 2: Rule Layer - Calculate the firing strength of each rule
+        rul = tf.reduce_prod(reshaped_membership_values, axis=2)
 
+        # Layer 3: Normalization Layer - Normalize the firing strengths
+        den = tf.clip_by_value(tf.reduce_sum(rul, axis=1), 1e-12, 1e12)  # Avoid division by zero
 
-    def create_model(self, theta, args):
-        """
-        Creates the model for the regression problem.
-        """
-        # Unpack
-        X = args[0]                 # Input dataset
-        Y = args[1]                 # Output dataset
+        # Layer 4: Defuzzification Layer - Compute the weighted sum of each rule's output
+        if self.defuzz_method == 'proportional':
+            num = tf.reduce_sum(tf.multiply(rul, self.y), axis=1)  # Weighted sum of the rule outputs
 
-        # First time only
-        if (self.init_prob):
-            self.init_prob = False
+        elif self.defuzz_method == 'linear':
 
-            # Build all combinations of premise MFs
-            self.build_combs()
+            linear_output = tf.matmul(rul, self.coefficients)
 
-            # Expand the input dataset to match the number of premise MFs.
-            self.Xe = self.expand_input_dataset(X)
+            #reshaped_intercepts = tf.reshape(self.intercepts, (1, self.n))  # Reshape intercepts            
+            reshaped_intercepts = tf.reshape(self.intercepts, (1, self.m))  # Reshape intercepts
 
-        # Builds the premise/consequent parameters mu, s, c, and A
-        self.build_param(theta)
+            linear_output = tf.add(linear_output, reshaped_intercepts)  # Now add
+            num = tf.reduce_sum(linear_output, axis=1)
 
-        # Calculate the output
-        f = self.forward_steps(X, self.Xe)
+        # Layer 5: Output Layer - Compute the final output
+        out = tf.divide(num, den)  # Final output of the ANFIS model
 
-        # Cost function for continuous problems
-        error = f - Y
-        J = (error ** 2).sum() / 2.0
+        return out
 
-        return J
+    def train_step(self, data):
+        x, y_true = data
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)
+            if self.loss_fun == 'mse':
+                loss = tf.keras.losses.MeanSquaredError()(y_true, y_pred)
+            elif self.loss_fun == 'huber':
+                loss = tf.keras.losses.Huber()(y_true, y_pred)
 
-    def eval_data(self, Xp):
-        """
-        Evaluates the input dataset with the model created in <create_model>.
-        """
-        # Expand the input dataset to match the number of premise MFs.
-        Xpe = self.expand_input_dataset(Xp)
+        gradients = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+        return {'loss': loss}
 
-        # Calculate the output
-        f = self.forward_steps(Xp, Xpe)
-
-        # Continuous problem
-        Yp = f
-
-        return Yp
-
-    def build_combs(self):
-        """
-        Builds all combinations of premise functions.
-
-        For example if <n_mf> = [3, 2], the MF indexes for the first feature
-        would be [0, 1, 2] and for the second feature would be [3, 4]. The
-        resulting combinations would be <combs> = [[0 0 1 1 2 2],
-                                                   [3 4 3 4 3 4]].
-        """
-        idx = np.cumsum(self.n_mf)
-        v = [np.arange(0, idx[0])]
-
-        for i in range(1, self.n_inputs):
-            v.append(np.arange(idx[i-1], idx[i]))
-
-        list_combs = list(itertools.product(*v))
-        self.combs = np.asarray(list_combs).T
-
-    def expand_input_dataset(self, X):
-        """
-        Expands the input dataset to match the number of premise MFs. Each MF
-        will be paired with the correct feature in the dataset.
-        """
-        n_samples = X.shape[0]
-        Xe = np.zeros((n_samples, self.n_pf))       # Expanded array
-        idx = np.cumsum(self.n_mf)
-        i1 = 0
-
-        for i in range(self.n_inputs):
-            i2 = idx[i]
-            Xe[:, i1:i2] = X[:, i].reshape(n_samples, 1)
-            i1 = idx[i]
-
-        return Xe
-
-    def build_param(self, theta):
-        """
-        Builds the premise/consequent parameters  mu, s, c, and A.
-        """
-        i1 = self.n_pf
-        i2 = 2 * i1
-        i3 = 3 * i1
-        i4 = self.n_var
-
-        # Premise function parameters (generalized Bell functions)
-        self.mu = theta[0:i1]
-        self.s = theta[i1:i2]
-        self.c = theta[i2:i3]
-
-        # Consequent function parameters (hyperplanes)
-        self.A = theta[i3:i4].reshape(self.n_inputs + 1, self.n_cf * self.n_outputs)
-
-    def forward_steps(self, X, Xe):
-        """
-        Calculate the output giving premise/consequent parameters and the
-        input dataset.
-        """
-        n_samples = X.shape[0]
-
-        # Layer 1: premise functions (pf)
-        d = (Xe - self.mu) / self.s
-        pf = 1.0 / (1.0 + (d * d) ** self.c)
-
-        # Layer 2: firing strenght (W)
-        W = np.prod(pf[:, self.combs], axis=1)
-
-        # Layer 3: firing strenght ratios (Wr)
-        Wr = W / W.sum(axis=1, keepdims=True)
-
-        # Layer 4 and 5: consequent functions (cf) and output (f)
-        X1 = np.hstack((np.ones((n_samples, 1)), X))
-        f = np.zeros((n_samples, self.n_outputs))
-        for i in range(self.n_outputs):
-            i1 = i * self.n_cf
-            i2 = (i + 1) * self.n_cf
-            cf = Wr * (X1 @ self.A[:, i1:i2])
-            f[:, i] = cf.sum(axis=1)
-
-        return f
-
-    def param_anfis(self):
-        """
-        Returns the premise MFs parameters.
-        """
-        mu = self.mu
-        s = self.s
-        c = self.c
-        A = self.A
-
-        return mu, s, c, A
+    def test_step(self, data):
+        x, y_true = data
+        y_pred = self(x, training=False)
+        if self.loss_fun == 'mse':
+            loss = tf.keras.losses.MeanSquaredError()(y_true, y_pred)
+        elif self.loss_fun == 'huber':
+            loss = tf.keras.losses.Huber()(y_true, y_pred)
+        return {'loss': loss}
