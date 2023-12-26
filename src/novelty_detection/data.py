@@ -22,8 +22,8 @@ def load_data(name, data_type=None, header_names=None, separator=','):
         data = pd.read_csv(file_path, sep=separator, names=header_names)
     return data
 
-def save_data(df, name, data_type='processed'):
+def save_data(df, name, data_type='processed', index=True):
     file_path=os.path.join(parameters.DATA_PATH, data_type, name)
-    df.to_csv(file_path, sep=',', index=False)
+    df.to_csv(file_path, sep=',', index=index)
 
 
