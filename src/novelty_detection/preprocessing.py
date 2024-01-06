@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
+import cv2
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+import matplotlib.pyplot as plt
 
 def minmax_scaler(data):
     scaler = MinMaxScaler()
@@ -112,17 +114,6 @@ def fill_dfs_nans_and_keep_long_dfs_only(dfs, thresh_len=200):
     
     return dfs_valid
 
-def preprocessing_pipeline(df, max_minutes, rows_to_skip, max_consecutive_nans, thresh_len):
-
-    df_date = convert_df_time_column_to_datetime(df)
-    df_index = convert_df_to_df_with_datetime_index(df_date)
-    dfs_continuous = make_df_continuous_in_time(df_index,  max_minutes)
-    dfs_reduced = convert_dfs_variables_to_same_frequency(dfs_continuous, rows_to_skip)
-    dfs_trim = split_dfs_based_on_consecutive_nans(dfs_reduced, max_consecutive_nans)
-    dfs_valid = fill_dfs_nans_and_keep_long_dfs_only(dfs_trim, thresh_len)
-
-    return dfs_valid
-
 def rearrange_and_keep_important_columns(dfs, columns):
 
     dfs_columns=[]
@@ -130,3 +121,112 @@ def rearrange_and_keep_important_columns(dfs, columns):
         dfs_columns.append(df[columns])
 
     return dfs_columns
+
+def preprocessing_pipeline(df, max_minutes, rows_to_skip, max_consecutive_nans, thresh_len, columns):
+
+    df_date = convert_df_time_column_to_datetime(df)
+    df_index = convert_df_to_df_with_datetime_index(df_date)
+    dfs_continuous = make_df_continuous_in_time(df_index,  max_minutes)
+    dfs_reduced = convert_dfs_variables_to_same_frequency(dfs_continuous, rows_to_skip)
+    dfs_trim = split_dfs_based_on_consecutive_nans(dfs_reduced, max_consecutive_nans)
+    dfs_valid = fill_dfs_nans_and_keep_long_dfs_only(dfs_trim, thresh_len)
+    dfs_columns = rearrange_and_keep_important_columns(dfs_valid, columns)
+
+    return dfs_columns
+
+def timeseries_plot(df, columns, grid_size, plot_size=(600,600), margin=150, spacing =435, dpi=200.):
+
+    rows, cols= grid_size
+    max_h, max_w = plot_size
+    width = (cols*max_w+cols*margin+spacing)/dpi # inches
+    height= (rows*max_h+rows*margin+spacing)/dpi
+
+    left = margin/dpi/width #axes ratio
+    bottom = margin/dpi/height
+    wspace = spacing/float(max_w)
+
+    fig, axes  = plt.subplots(rows,cols, figsize=(width,height), dpi=dpi)
+    fig.subplots_adjust(left=left, bottom=bottom, right=1.-left, top=1.-bottom, 
+                        wspace=wspace, hspace=wspace)
+    #fig.autofmt_xdate()
+    for ax, col, title in zip(axes.flatten(), columns, columns):
+        ax.plot(df.index, df[col])
+        ax.title.set_text(title)
+        ax.tick_params(axis='x', labelrotation=90)
+        #df_index[[col]].plot(ax=ax, legend=False, title=title, x_compat=True, rot=90,)
+
+    # save figure to numpy array
+    fig.canvas.draw()
+    buf = fig.canvas.buffer_rgba()
+    data = np.asarray(buf)
+    plt.close('all')
+    return cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
+
+def correlation_plot(df, columns, max_shift, plot_size=(600,600), margin=150, spacing =435, dpi=200.):
+
+    list_of_dict = []
+
+    for shift in range(max_shift):
+        df_copy=df.copy()
+        df_copy[columns] = df_copy[columns].shift(shift)
+        df_remove = df_copy.iloc[shift:]
+        correaltions = df_remove.corr(method='pearson').iloc[:,-1]
+        d_correlations = correaltions.to_dict()
+        list_of_dict.append(d_correlations)
+
+    df_corr = pd.DataFrame(list_of_dict, columns=list(list_of_dict[0].keys()))
+
+    max_h, max_w = plot_size
+    width = (max_w+margin+spacing)/dpi # inches
+    height= (max_h+margin+spacing)/dpi
+
+    left = margin/dpi/width #axes ratio
+    bottom = margin/dpi/height
+    wspace = spacing/float(max_w)
+
+    fig, ax  = plt.subplots(figsize=(width,height), dpi=dpi)
+    fig.subplots_adjust(left=left, bottom=bottom, right=1.-left, top=1.-bottom, 
+                        wspace=wspace, hspace=wspace)
+    df_corr[columns].plot(ax=ax)
+    ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
+
+    # save figure to numpy array
+    fig.canvas.draw()
+    buf = fig.canvas.buffer_rgba()
+    data = np.asarray(buf)
+    plt.close('all')
+    return cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
+
+def frequency_plot(df, columns, grid_size, frate, max_freq, plot_size=(600,600), margin=150, spacing =435, dpi=200.):
+
+    rows, cols= grid_size
+    max_h, max_w = plot_size
+    width = (cols*max_w+cols*margin+spacing)/dpi # inches
+    height= (rows*max_h+rows*margin+spacing)/dpi
+
+    left = margin/dpi/width #axes ratio
+    bottom = margin/dpi/height
+    wspace = spacing/float(max_w)
+
+    fig, axes  = plt.subplots(rows,cols, figsize=(width,height), dpi=dpi)
+    fig.subplots_adjust(left=left, bottom=bottom, right=1.-left, top=1.-bottom, 
+                        wspace=wspace, hspace=wspace)
+    #fig.autofmt_xdate()
+    
+    n = df.shape[0]
+    for ax, col, title in zip(axes.flatten(), columns, columns):
+        var_fft = np.fft.fft(df[col])
+        var_fft[0] = 0
+        var_mag = np.abs(var_fft)
+        freqs = np.fft.fftfreq(n, 1./frate) # cycles/second
+
+        ax.plot(freqs[:n//2], var_mag[:n//2])
+        ax.title.set_text(title)
+        ax.set_xlim([0, max_freq])
+
+    # save figure to numpy array
+    fig.canvas.draw()
+    buf = fig.canvas.buffer_rgba()
+    data = np.asarray(buf)
+    plt.close('all')
+    return cv2.cvtColor(data, cv2.COLOR_RGB2BGR)

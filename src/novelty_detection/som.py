@@ -126,6 +126,9 @@ class SOM():
             neighborhood = np.zeros(shape=self.som_grid_size)
             neighborhood[bmu_distance <= neighborhood_range] = 1
 
+        if method=='half':
+            neighborhood = 1 / (2 ** bmu_distance)
+
         elif method=='exp':
             neighborhood = np.exp(-(bmu_distance ** 2/ (2*self.sigma_0 ** 2)))
         
@@ -134,7 +137,7 @@ class SOM():
         
         return neighborhood[..., np.newaxis]
     
-    def update_sigma_and_learning_rate(self, n_iter, method='linear'):
+    def update_sigma_and_learning_rate(self, sigma, learning_rate, n_iter, method='linear'):
         """
         Update sigma and learning rate based on the current iteration.
 
@@ -150,16 +153,17 @@ class SOM():
             learning_rate = self.learning_rate_0 * np.exp(-(n_iter * self.learning_rate_decay))
 
         elif method=='linear':
-            sigma = 1.0 - (n_iter/self.total_iterations)
-            learning_rate = sigma * self.learning_rate_0
+            linear_decay =  1.0 - (n_iter/self.total_iterations)
+            sigma = self.sigma_0 * linear_decay
+            learning_rate = self.learning_rate_0  * linear_decay
         
         elif method=='constant':
             sigma = self.sigma_0
             learning_rate = self.learning_rate_0
 
         elif method=='mini_som':
-            sigma = self.sigma_0 / (1+self.sigma_decay/(self.max_iter/2))
-            learning_rate = self.learning_rate_0 / (1+self.learning_rate_decay/(self.max_iter/2))
+            sigma = sigma / (1+self.sigma_decay/(self.max_iter/2))
+            learning_rate = learning_rate / (1+self.learning_rate_decay/(self.max_iter/2))
 
         return sigma, learning_rate
 
@@ -225,7 +229,7 @@ class SOM():
                 # Do one step of training
                 som = self.update_som(X_row, som, learning_rate, sigma)
                 # Update learning rate and sigma
-                sigma, learning_rate = self.update_sigma_and_learning_rate(global_iter_counter, 
+                sigma, learning_rate = self.update_sigma_and_learning_rate(sigma, learning_rate, global_iter_counter, 
                                                                     self.methods['update_sigma_and_learning_rate'])
         else:
             self.total_iterations = np.minimum(epochs * n_samples, self.max_iter)
@@ -244,10 +248,10 @@ class SOM():
                         break
                     X_row = X[idx]
                     # Do one step of training
-                    som = self.step(X_row, som, learning_rate, sigma)
+                    som = self.update_som(X_row, som, learning_rate, sigma)
                     # Update learning rate and sigma
                     global_iter_counter += 1
-                    sigma, learning_rate = self.update_sigma_and_learning_rate(global_iter_counter, 
+                    sigma, learning_rate = self.update_sigma_and_learning_rate(sigma, learning_rate, global_iter_counter, 
                                                                             self.methods['update_sigma_and_learning_rate'])
         # Save som, learning rate and sigma after training
         self.som = som

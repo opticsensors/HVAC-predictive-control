@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import cv2
 from novelty_detection import parameters
 
 def _find(name, path):
@@ -25,5 +26,9 @@ def load_data(name, data_type=None, header_names=None, separator=','):
 def save_data(df, name, data_type='processed', index=True):
     file_path=os.path.join(parameters.DATA_PATH, data_type, name)
     df.to_csv(file_path, sep=',', index=index)
+
+def save_img(img, name, data_type='plots'):
+    file_path=os.path.join(parameters.DATA_PATH, data_type, name)
+    cv2.imwrite(file_path, img)
 
 
