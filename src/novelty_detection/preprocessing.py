@@ -134,7 +134,22 @@ def preprocessing_pipeline(df, max_minutes, rows_to_skip, max_consecutive_nans, 
 
     return dfs_columns
 
-def timeseries_plot(df, columns, grid_size, plot_size=(600,600), margin=150, spacing =435, dpi=200.):
+def remove_weekends(df):
+
+    dayofweek = df.index.to_series().dt.dayofweek
+    df['day_of_week'] = dayofweek.to_numpy()
+    df['isweekday'] = df['day_of_week']<5
+    df['group']=df['isweekday'].ne(df['isweekday'].shift()).cumsum()
+
+    dfs_weekdays=[]
+    for i, g in df.groupby(df['group']):
+        if g['isweekday'].all()==True:
+            g=g.drop(columns=['day_of_week','isweekday','group'])
+            dfs_weekdays.append(g)
+
+    return dfs_weekdays
+
+def timeseries_plot(df, columns, grid_size, main_title='Time series plot', plot_size=(600,600), margin=150, spacing =435, dpi=200.):
 
     rows, cols= grid_size
     max_h, max_w = plot_size
@@ -148,12 +163,13 @@ def timeseries_plot(df, columns, grid_size, plot_size=(600,600), margin=150, spa
     fig, axes  = plt.subplots(rows,cols, figsize=(width,height), dpi=dpi)
     fig.subplots_adjust(left=left, bottom=bottom, right=1.-left, top=1.-bottom, 
                         wspace=wspace, hspace=wspace)
-    #fig.autofmt_xdate()
+    fig.suptitle(main_title, size=20)
     for ax, col, title in zip(axes.flatten(), columns, columns):
         ax.plot(df.index, df[col])
         ax.title.set_text(title)
         ax.tick_params(axis='x', labelrotation=90)
-        #df_index[[col]].plot(ax=ax, legend=False, title=title, x_compat=True, rot=90,)
+        ax.set_xlabel('date')
+        ax.set_ylabel('value') 
 
     # save figure to numpy array
     fig.canvas.draw()
@@ -162,7 +178,7 @@ def timeseries_plot(df, columns, grid_size, plot_size=(600,600), margin=150, spa
     plt.close('all')
     return cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
 
-def correlation_plot(df, columns, max_shift, plot_size=(600,600), margin=150, spacing =435, dpi=200.):
+def correlation_plot(df, columns, max_shift,main_title='Correlation plot', x_ticks=8, plot_size=(600,600), margin=150, spacing =435, dpi=200.):
 
     list_of_dict = []
 
@@ -184,11 +200,58 @@ def correlation_plot(df, columns, max_shift, plot_size=(600,600), margin=150, sp
     bottom = margin/dpi/height
     wspace = spacing/float(max_w)
 
-    fig, ax  = plt.subplots(figsize=(width,height), dpi=dpi)
+    # fig, ax  = plt.subplots(figsize=(width,height), dpi=dpi)
+    # fig.subplots_adjust(left=left, bottom=bottom, right=1.-left, top=1.-bottom, 
+    #                     wspace=wspace, hspace=wspace)
+    # df_corr[columns].plot(ax=ax)
+    # ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
+    # ax.title.set_text('Correlation plot')
+    # ax.set_xlabel('Sample number')
+    # ax.set_ylabel('Pearson correlation coefficient') 
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax2 = ax1.twiny()
+
+    # Add some extra space for the second axis at the bottom
     fig.subplots_adjust(left=left, bottom=bottom, right=1.-left, top=1.-bottom, 
                         wspace=wspace, hspace=wspace)
-    df_corr[columns].plot(ax=ax)
-    ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
+    fig.suptitle(main_title, size=20)
+    df_to_plot = df_corr[columns].reset_index()
+    df_to_plot['minutes'] = df_to_plot['index'] * 2
+    df_to_plot['minutes_str'] = pd.to_datetime(df_to_plot['minutes'], unit='m').dt.strftime('%H:%M')
+    df_to_plot.plot(x='minutes_str', y=columns,ax=ax1)
+    ax1.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
+    ax1.set_xlabel('Past time')
+    ax1.set_ylabel('Pearson correlation coefficient') 
+    ax1.margins(x=0)
+    ax1.xaxis.set_major_locator(plt.MaxNLocator(x_ticks))
+
+    new_tick_locations = np.arange(x_ticks+1)
+
+    def tick_function(X):
+        X=X*max_shift/x_ticks
+        return X.astype(np.int64)
+
+    # Move twinned axis ticks and label from top to bottom
+    ax2.xaxis.set_ticks_position("bottom")
+    ax2.xaxis.set_label_position("bottom")
+
+    # Offset the twin axis below the host
+    ax2.spines["bottom"].set_position(("axes", -0.25))
+
+    # Turn on the frame for the twin axis, but then hide all 
+    # but the bottom spine
+    ax2.set_frame_on(True)
+    ax2.patch.set_visible(False)
+
+    for sp in ax2.spines.values():
+        sp.set_visible(False)
+    ax2.spines["bottom"].set_visible(True)
+
+    ax2.set_xticks(new_tick_locations)
+    ax2.set_xticklabels(tick_function(new_tick_locations))
+    ax2.set_xlabel(f"Sample number")
 
     # save figure to numpy array
     fig.canvas.draw()
@@ -197,7 +260,7 @@ def correlation_plot(df, columns, max_shift, plot_size=(600,600), margin=150, sp
     plt.close('all')
     return cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
 
-def frequency_plot(df, columns, grid_size, frate, max_freq, plot_size=(600,600), margin=150, spacing =435, dpi=200.):
+def frequency_plot(df, columns, grid_size, frate, max_freq, main_title='Frecuency plot', plot_size=(600,600), margin=150, spacing =435, dpi=200.):
 
     rows, cols= grid_size
     max_h, max_w = plot_size
@@ -211,8 +274,7 @@ def frequency_plot(df, columns, grid_size, frate, max_freq, plot_size=(600,600),
     fig, axes  = plt.subplots(rows,cols, figsize=(width,height), dpi=dpi)
     fig.subplots_adjust(left=left, bottom=bottom, right=1.-left, top=1.-bottom, 
                         wspace=wspace, hspace=wspace)
-    #fig.autofmt_xdate()
-    
+    fig.suptitle(main_title, size=20)
     n = df.shape[0]
     for ax, col, title in zip(axes.flatten(), columns, columns):
         var_fft = np.fft.fft(df[col])
@@ -220,9 +282,51 @@ def frequency_plot(df, columns, grid_size, frate, max_freq, plot_size=(600,600),
         var_mag = np.abs(var_fft)
         freqs = np.fft.fftfreq(n, 1./frate) # cycles/second
 
+        #ax.plot(freqs[:n//2], var_mag[:n//2])
+        #ax.title.set_text(title)
+        #ax.set_xlim([0, max_freq])
+
+        ax2 = ax.twiny()
+
+        # Add some extra space for the second axis at the bottom
+        fig.subplots_adjust(bottom=0.2)
+
         ax.plot(freqs[:n//2], var_mag[:n//2])
         ax.title.set_text(title)
+        ax.set_xlabel('Freq Hz')
+        ax.set_ylabel('Magnitude') 
+        ax.margins(x=0)
+        ax.xaxis.set_major_locator(plt.MaxNLocator(8))
         ax.set_xlim([0, max_freq])
+
+        new_tick_locations = np.arange(8+1)
+
+        def tick_function(X):
+            
+            X=X*(4*1e-5)/8
+            X=(1/X) / 3600
+            X_list=[f"{x:.1f}" if not np.isinf(x) else 'inf' for x in X]
+            return np.array(X_list)
+
+        # Move twinned axis ticks and label from top to bottom
+        ax2.xaxis.set_ticks_position("bottom")
+        ax2.xaxis.set_label_position("bottom")
+
+        # Offset the twin axis below the host
+        ax2.spines["bottom"].set_position(("axes", -0.25))
+
+        # Turn on the frame for the twin axis, but then hide all 
+        # but the bottom spine
+        ax2.set_frame_on(True)
+        ax2.patch.set_visible(False)
+
+        for sp in ax2.spines.values():
+            sp.set_visible(False)
+        ax2.spines["bottom"].set_visible(True)
+
+        ax2.set_xticks(new_tick_locations)
+        ax2.set_xticklabels(tick_function(new_tick_locations))
+        ax2.set_xlabel(f"Period hours")
 
     # save figure to numpy array
     fig.canvas.draw()

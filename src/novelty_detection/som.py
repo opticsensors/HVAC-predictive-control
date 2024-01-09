@@ -130,7 +130,7 @@ class SOM():
             neighborhood = 1 / (2 ** bmu_distance)
 
         elif method=='exp':
-            neighborhood = np.exp(-(bmu_distance ** 2/ (2*self.sigma_0 ** 2)))
+            neighborhood = np.exp(-(bmu_distance ** 2/ (2*sigma ** 2)))
         
         elif method=='mult':
             neighborhood = sigma * bmu_distance
@@ -156,7 +156,16 @@ class SOM():
             linear_decay =  1.0 - (n_iter/self.total_iterations)
             sigma = self.sigma_0 * linear_decay
             learning_rate = self.learning_rate_0  * linear_decay
+
+        elif method=='mix':
+            linear_decay =  1.0 - (n_iter/self.total_iterations)
+            sigma = self.sigma_0 * np.exp(-(n_iter / self.max_iter))
+            learning_rate = self.learning_rate_0  * linear_decay
         
+        elif method=='inv':
+            sigma = self.sigma_0 / n_iter
+            learning_rate = self.learning_rate_0  / n_iter
+
         elif method=='constant':
             sigma = self.sigma_0
             learning_rate = self.learning_rate_0
