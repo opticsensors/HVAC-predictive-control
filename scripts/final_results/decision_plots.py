@@ -24,31 +24,54 @@ thresh_len=1000
 choosen_df=1
 
 dfs = preprocessing_pipeline(df, max_minutes, rows_to_skip, max_consecutive_nans, thresh_len, all_columns)
+
+for num,df in enumerate(dfs):
+    print(f'saving df {num}')
+    name = f'gaia_data_{num}.csv'
+    save_data(df, name, data_type='processed', index=True)
+
 df_index = dfs[choosen_df]
-dfs_weekdays = remove_weekends(df_index)
 
-print('doing plots for the whole df...')
-plt1 = timeseries_plot(df_index, all_columns, (3,4), main_title='Time series plot', plot_size=(500,800), margin=300, spacing =435, dpi=200.)
-plt2 = correlation_plot(df_index, x_columns, max_shift=720, main_title='Correlation plot', plot_size=(600,1000), margin=600, spacing =925, dpi=200.)
-plt3 = frequency_plot(df_index, all_columns, (3,4), frate=1/120, max_freq=0.00004, main_title='Frecuency plot', plot_size=(500,800), margin=300, spacing =500, dpi=200.)
+df_index = remove_specific_day(df_index, '2022-05-25')
+dfs_day_working_hours = remove_non_working_hours(df_index, strating_hour='04:55', ending_hour='18:30')
+l_data1 = []
+l_data2 = []
+l_data3 = []
 
-save_img(plt1, 'timeseries_plot.png', data_type='plots')
-save_img(plt2, 'correlation_plot.png', data_type='plots')
-save_img(plt3, 'frequency_plot.png', data_type='plots')
+for day_num,df_day in enumerate(dfs_day_working_hours):
+    print(f'doing plots for day num {day_num} of df...')
+    l_data1.append(compute_timeseries(df_day))
+    l_data2.append(compute_correlations(df_day, x_columns, max_shift=90, circular_shift=True))
+    l_data3.append(compute_frequencies(df_day, all_columns, frate=1/120, max_freq=0.0006))
 
-for week_num,df_week in enumerate(dfs_weekdays):
-    print(f'doing plots for week num {week_num} of df...')
+df_timeseries = pd.concat(l_data1).groupby(level=0).mean()
+df_correlations = pd.concat(l_data2).groupby(level=0).mean()
+df_frequencies = pd.concat(l_data3).groupby(level=0).mean()
 
-    #name = f'gaia_data_{choosen_df}_week{week_num}.csv'
-    #save_data(df_week, name, data_type='processed', index=True)
+plt1 = timeseries_plot(df_timeseries, all_columns, time='hours',main_title=f'Time series plot working hours average')
+plt2 = correlation_plot(df_correlations, x_columns, main_title=f'Correlation plot working hours average')
+plt3 = frequency_plot(df_frequencies, all_columns, main_title=f'Frecuency plot working hours average')
 
-    plt1 = timeseries_plot(df_week, all_columns, (3,4),main_title=f'Time series plot of week {week_num}', plot_size=(500,800), margin=300, spacing =435, dpi=200.)
-    plt2 = correlation_plot(df_week, x_columns, max_shift=720, main_title=f'Correlation plot of week {week_num}', plot_size=(600,1000), margin=600, spacing =925, dpi=200.)
-    plt3 = frequency_plot(df_week, all_columns, (3,4), frate=1/120, max_freq=0.00004, main_title=f'Frecuency plot of week {week_num}', plot_size=(500,800), margin=300, spacing =500, dpi=200.)
+save_img(plt1, f'timeseries_plot_day_avg.png', data_type='plots')
+save_img(plt2, f'correlation_plot_day_avg.png', data_type='plots')
+save_img(plt3, f'frequency_plot_day_avg.png', data_type='plots')
 
-    save_img(plt1, f'timeseries_plot_week{week_num}.png', data_type='plots')
-    save_img(plt2, f'correlation_plot_week{week_num}.png', data_type='plots')
-    save_img(plt3, f'frequency_plot_week{week_num}.png', data_type='plots')
+
+for day_num,df_day in enumerate(dfs_day_working_hours):
+    print(f'doing plots again for day num {day_num} of df...')
+    df_timeseries = compute_timeseries(df_day)
+    df_correlations=compute_correlations(df_day, x_columns, max_shift=90, circular_shift=True)
+    df_frequencies=compute_frequencies(df_day, all_columns, frate=1/120, max_freq=0.0006)
+
+    plt1 = timeseries_plot(df_timeseries, all_columns, time='hours', main_title=f'Time series plot working hours day {day_num}')
+    plt2 = correlation_plot(df_correlations, x_columns, main_title=f'Correlation plot working hours day {day_num}')
+    plt3 = frequency_plot(df_frequencies, all_columns, main_title=f'Frecuency plot working hours day {day_num}')
+
+    save_img(plt1, f'timeseries_plot_day_{day_num}.png', data_type='plots')
+    save_img(plt2, f'correlation_plot_day_{day_num}.png', data_type='plots')
+    save_img(plt3, f'frequency_plot_day_{day_num}.png', data_type='plots')
+
+
 
 
 # train and test split
