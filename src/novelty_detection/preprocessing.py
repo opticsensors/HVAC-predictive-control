@@ -152,9 +152,22 @@ def remove_specific_day(df, removed_day):
     return df.drop(df.loc[removed_day].index)
 
 def remove_non_working_hours(df, strating_hour='04:32', ending_hour='18:30'):
+
     df = df.between_time(strating_hour,ending_hour)
     df = df[df.index.dayofweek < 5]
     dfs_day_working_hours = [group[1] for group in df.groupby(df.index.date)]
     dfs_day_working_hours = [df for df in dfs_day_working_hours if len(df) == len(max(dfs_day_working_hours, key=len))]
     
     return dfs_day_working_hours    
+
+def filter_signal(df, columns, kernel_size=5):
+    
+    df_filtered = df.copy()
+    for col in columns:
+        signal = df[col]
+        outside = kernel_size//2
+        signal_pad = np.pad(signal, (outside, outside), 'edge')
+        signal_conv = np.convolve(signal_pad, np.ones((kernel_size,))/kernel_size, mode='valid')
+        df_filtered[col] = signal_conv
+
+    return df_filtered

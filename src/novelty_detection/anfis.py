@@ -27,7 +27,7 @@ class ANFIS(tf.keras.Model):
             if init_method == 'uniform':
                 return tf.Variable(tf.random.uniform(shape, minval=min_val, maxval=max_val), name=name)
             elif init_method == 'normal':
-                return tf.Variable(tf.random.normal(shape), name=name)
+                return tf.Variable(tf.random.normal(shape, mean=0.0, stddev=.1,), name=name)
             else:
                 raise ValueError("Invalid initialization method")
 

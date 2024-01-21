@@ -27,9 +27,9 @@ def load_data(name, data_type=None, header_names=None, separator=',', index=Fals
         data = convert_df_to_df_with_datetime_index(data)
     return data
 
-def save_data(df, name, data_type='processed', index=True):
+def save_data(df, name, data_type='processed', index=True, header=True):
     file_path=os.path.join(parameters.DATA_PATH, data_type, name)
-    df.to_csv(file_path, sep=',', index=index)
+    df.to_csv(file_path, sep=',', index=index, header=header)
 
 def save_img(img, name, data_type='plots'):
     file_path=os.path.join(parameters.DATA_PATH, data_type, name)
