@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-from novelty_detection.som_metrics import SOMmetrics
+from hvac_control.som_metrics import SOMmetrics
 
 class KNN(SOMmetrics):
     """"

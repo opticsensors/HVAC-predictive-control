@@ -1,6 +1,6 @@
-from novelty_detection.data import load_data, save_img, save_data
-from novelty_detection.preprocessing import *
-from novelty_detection.decision_plots import *
+from hvac_control.data import load_data, save_img, save_data
+from hvac_control.preprocessing import *
+from hvac_control.decision_plots import *
 
 #load preprocessed data
 data_to_load = "gaia_data_1.csv"

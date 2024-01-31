@@ -120,7 +120,7 @@ def rearrange_and_keep_important_columns(dfs, columns):
 
     return dfs_columns
 
-def preprocessing_pipeline(df, max_minutes, rows_to_skip, max_consecutive_nans, thresh_len, columns):
+def first_preprocessing_step(df, max_minutes, rows_to_skip, max_consecutive_nans, thresh_len, columns):
 
     df_date = convert_df_time_column_to_datetime(df)
     df_index = convert_df_to_df_with_datetime_index(df_date)
@@ -148,8 +148,13 @@ def remove_weekends(df):
     return dfs_weekdays
 
 def remove_specific_day(df, removed_day):
-
-    return df.drop(df.loc[removed_day].index)
+    # Check if removed_day exists in the DataFrame's index
+    if removed_day in df.index:
+        # Drop the rows corresponding to removed_day
+        return df.drop(df.loc[removed_day].index)
+    else:
+        # If removed_day is not in the index, return the original DataFrame
+        return df
 
 def remove_non_working_hours(df, strating_hour='04:32', ending_hour='18:30'):
 
@@ -189,3 +194,36 @@ def filter_signal_causal(df, columns, kernel_size=5):
     df_corrected = df_corrected.iloc[:-offset] # delete last rows
 
     return df_corrected
+
+def second_preprocessing_step(df, columns, columns_to_filter, strating_hour, ending_hour, removed_day, kernel_size=5, projection = 30, ):
+
+    df = filter_signal_non_causal(df, columns_to_filter, kernel_size)
+    df['Diff_temp'] = df['T_imp'] - df['T_ret']
+    df['Day_week'] = df.index.to_series().dt.dayofweek
+    df['Hours'] = df.index.to_series().dt.hour
+    df['T_ret_in_1h'] = df['T_ret'].shift(-projection) # 1 hour is 30 rows, since between rows there is a 2 min interval
+    df = df.iloc[:-projection]
+    df['Hours_sin'] = np.sin(2 * np.pi *   df['Hours']/24.0)
+    df['Hours_cos'] = np.cos(2 * np.pi *   df['Hours']/24.0)
+    df['Day_week_sin'] = np.sin(2 * np.pi * df['Day_week']/7)
+    df['Day_week_cos'] = np.cos(2 * np.pi * df['Day_week']/7)
+    df = df.drop(['Day_week', 'Hours'], axis=1)
+    df = remove_specific_day(df, removed_day)
+    dfs_day_working_hours = remove_non_working_hours(df, strating_hour, ending_hour)
+    dfs_for_prediction = []
+
+    for i,df_day in enumerate(dfs_day_working_hours):
+        df_day=df_day.reset_index().drop('datetime', axis=1)
+        df_day['Day'] = i
+        dfs_for_prediction.append(df_day)
+
+    # Check if dfs_for_prediction is empty
+    if dfs_for_prediction:
+        df_for_prediction = pd.concat(dfs_for_prediction, ignore_index=True)
+    else:
+        # Create an empty DataFrame with specified columns if dfs_for_prediction is empty
+        df_for_prediction = pd.DataFrame(columns=columns)
+
+    df_for_prediction = df_for_prediction[columns]
+
+    return df_for_prediction

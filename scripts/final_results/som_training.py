@@ -1,7 +1,7 @@
 from sklearn.decomposition import PCA
-from novelty_detection.som import SOM
+from hvac_control.som import SOM
 from sklearn.model_selection import train_test_split
-from novelty_detection.preprocessing import minmax_scaler_given_parameters, std_scaler_given_parameters
+from hvac_control.preprocessing import minmax_scaler_given_parameters, std_scaler_given_parameters
 
 # train and test split
 # X=df_index[x_columns].to_numpy()
