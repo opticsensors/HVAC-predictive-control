@@ -160,14 +160,32 @@ def remove_non_working_hours(df, strating_hour='04:32', ending_hour='18:30'):
     
     return dfs_day_working_hours    
 
-def filter_signal(df, columns, kernel_size=5):
+def filter_signal_non_causal(df, columns, kernel_size=5):
     
     df_filtered = df.copy()
+    outside = kernel_size//2
     for col in columns:
         signal = df[col]
-        outside = kernel_size//2
         signal_pad = np.pad(signal, (outside, outside), 'edge')
         signal_conv = np.convolve(signal_pad, np.ones((kernel_size,))/kernel_size, mode='valid')
         df_filtered[col] = signal_conv
 
     return df_filtered
+
+def filter_signal_causal(df, columns, kernel_size=5):
+    
+    kernel_size = 5
+    offset = kernel_size//2
+
+    df_filtered = df.copy()
+    for col in columns:
+        signal = df[col]
+        signal_pad = np.pad(signal, (kernel_size - 1, 0), 'edge')
+        kernel = np.ones(kernel_size)
+        signal_conv = np.convolve(signal_pad, kernel, mode='valid') / kernel_size
+        df_filtered[col] = signal_conv
+
+    df_corrected = df_filtered.shift(-offset) # correct filter delay
+    df_corrected = df_corrected.iloc[:-offset] # delete last rows
+
+    return df_corrected

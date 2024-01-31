@@ -54,10 +54,10 @@ class ANFIS(tf.keras.Model):
         
         # Layer 1: membership layer
         if self.mf == 'gaussmf':
-            membership_values = tf.exp(-0.5 * tf.square(tf.subtract(tf.tile(inputs, (1, self.m)), self.mu)) / tf.square(self.sigma))
+            membership_values = tf.exp(-0.5 * tf.square(tf.subtract(tf.tile(inputs, (1, self.m)), self.mu)) / tf.square(self.sigma+1e-12))
 
         elif self.mf == 'gbellmf':
-            abs_val = tf.abs((tf.subtract(tf.tile(inputs, (1, self.m)), self.c)) / self.a)
+            abs_val = tf.abs((tf.subtract(tf.tile(inputs, (1, self.m)), self.c)) / (self.a+1e-12))
             membership_values = 1 / (1 + tf.pow(abs_val, 2 * self.b))
 
         # Reshape the membership values for the rule layer
