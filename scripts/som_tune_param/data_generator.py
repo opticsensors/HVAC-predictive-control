@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from novelty_detection.som import SOM
-from novelty_detection.som_metrics import SOMmetrics
+from hvac_control.som import SOM
+from hvac_control.som_metrics import SOMmetrics
 
 
 

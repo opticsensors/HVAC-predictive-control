@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "novelty_detection"
+name = "HVAC-predictive-control"
 version = "0.0.1"
 authors = [
   { name="Eduard Almar", email="edu12due@gmail.com" },
@@ -27,5 +27,5 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/opticsensors/novely-detection"
-"Bug Tracker" = "https://github.com/opticsensors/novely-detection/issues"
+"Homepage" = "https://github.com/opticsensors/HVAC-predictive-control"
+"Bug Tracker" = "https://github.com/opticsensors/HVAC-predictive-control/issues"

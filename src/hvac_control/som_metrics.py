@@ -1,7 +1,7 @@
 import numpy as np
 import numpy as np
 import pandas as pd
-from novelty_detection.utils import argmin_first_two_axes
+from hvac_control.utils import argmin_first_two_axes
 
 class SOMmetrics():
     """

@@ -1,8 +1,8 @@
 import os
 import pandas as pd
 import cv2
-from novelty_detection import parameters
-from novelty_detection.preprocessing import *
+from hvac_control import parameters
+from hvac_control.preprocessing import *
 
 def _find(name, path):
     for root, dirs, files in os.walk(path):

@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.ma.core import ceil
 from sklearn.utils import check_array, check_X_y
-from novelty_detection.utils import (argmin_first_two_axes,
+from hvac_control.utils import (argmin_first_two_axes,
                                      choose_random_sample,
                                      choose_random_array)
 from scipy.spatial import distance 
