@@ -6,20 +6,18 @@ from novelty_detection.decision_plots import *
 data_to_load = "gaia_data_1.csv"
 
 x_columns = ['T_ext', 'Solar_irrad', 'T_imp', 
-           'BC1_power', 'BC2_power', 
-           'T_ret',
-           'Diff_temp', ]
+           'BC1_power', 'BC2_power',
+           'Diff_temp', ] 
 
-y_column = ['T_ret_in_1h']
+y_column = ['T_ret']
 
 all_columns = x_columns + y_column
 
 df_index = load_data(data_to_load, header_names=None, index=True)
+df_index = filter_signal_non_causal(df_index, ['T_ext', 'Solar_irrad', 'T_imp', 'BC1_power', 'BC2_power', 'T_ret'], 5)
 df_index['Diff_temp'] = df_index['T_imp'] - df_index['T_ret']
-df_index['T_ret_in_1h'] = df_index['T_ret'].shift(-30) # 1 hour is 30 rows, since between rows there is a 2 min interval
-df_index = df_index.iloc[:-30]
 df_index = remove_specific_day(df_index, '2022-05-25')
-dfs_day_working_hours = remove_non_working_hours(df_index, strating_hour='05:00', ending_hour='17:30')
+dfs_day_working_hours = remove_non_working_hours(df_index, strating_hour='05:00', ending_hour='18:30')
 l_data1 = []
 l_data2 = []
 l_data3 = []
@@ -27,8 +25,8 @@ l_data3 = []
 for day_num,df_day in enumerate(dfs_day_working_hours):
     print(f'doing plots for day num {day_num} of df...')
     df_timeseries = compute_timeseries(df_day)
-    df_correlations=compute_correlations(df_day, x_columns, y_column ,max_shift=150, circular_shift=True)
-    df_frequencies=compute_frequencies(df_day, all_columns, frate=1/120, max_freq=0.003)
+    df_correlations=compute_correlations(df_day, x_columns, y_column ,max_shift=90, circular_shift=False)
+    df_frequencies=compute_frequencies(df_day, all_columns, frate=1/120, max_freq=0.0006)
 
     l_data1.append(df_timeseries)
     l_data2.append(df_correlations)
@@ -48,7 +46,7 @@ df_frequencies = pd.concat(l_data3).groupby(level=0).mean()
 
 plt1 = timeseries_plot(df_timeseries, all_columns, time='hours',main_title=f'Time series plot working hours average', grid_size=(3,3))
 plt2 = correlation_plot(df_correlations, x_columns, main_title=f'Correlation plot working hours average')
-plt3 = frequency_plot(df_frequencies, all_columns, main_title=f'Frecuency plot working hours average',grid_size=(3,3))
+plt3 = frequency_plot(df_frequencies, all_columns, main_title=f'Frecuency plot working hours average', grid_size=(3,3))
 
 save_img(plt1, f'timeseries_plot_day_avg.png', data_type='plots')
 save_img(plt2, f'correlation_plot_day_avg.png', data_type='plots')
