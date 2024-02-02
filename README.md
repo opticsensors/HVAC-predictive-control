@@ -1,6 +1,6 @@
 # `HVAC-predictive-control`
 
-A Python package designed for handling and optimizing HVAC system data. It processes temperature and flow measurements, power usage, and solar irradiance to enhance system efficiency. The package features:
+A Python package designed for handling HVAC system data. It processes temperature and flow measurements, power usage, and solar irradiance to optimize system efficiency. The package features:
 - Novelty/anomaly detection using SOM. 
 - Predictive analysis employing ANFIS.
 
@@ -85,16 +85,16 @@ The project follows a tree structure similar to this cookiecutter [template][coo
 
 We load the `gaia_data.csv` file into a pandas DataFrame (`df`) and sequentially apply the following data processing steps:
 
-1. Convert the 'time' column in `df` to a datetime format and rename it to 'datetime'.
+1. Convert the column with time info in `df` to a datetime format and rename it to 'datetime'.
 2. Set this 'datetime' column as the new index of `df`.
 3. Transform `df` to ensure a continuous time series, with a 1-minute interval between rows:
    - Split the DataFrame if there's a time jump larger than a specified threshold.
    - Insert rows filled with NaNs for smaller time gaps to maintain the 1-minute interval.
 
-6. Retain only those rows where all sensors have recorded measurements, in line with their synchronized sampling intervals.
-7. Split `df` again if there is a sequence of consecutive NaNs exceeding a defined threshold.
-8. Fill the remaining NaNs in `df` using linear interpolation. Subsequently, discard any segments of `df` that are smaller than a predetermined size threshold.
-9. Keep columns of interest.
+4. Retain only those rows where all sensors have recorded measurements, in line with their synchronized sampling intervals.
+5. Split `df` again if there is a sequence of consecutive NaNs exceeding a defined threshold.
+6. Fill the remaining NaNs in `df` using linear interpolation. Subsequently, discard any segments of `df` that are smaller than a predetermined size threshold.
+7. Keep columns of interest.
 
 This approach ensures that the DataFrame is structured with uniform time intervals and contains only complete and significant data segments for analysis. Hence, after this first step, we will have a list of potential DataFrames for posterior analyisis. 
 
@@ -128,15 +128,15 @@ This structured approach ensures a dataset that is ready for modeling and analys
 
 Three types of plots have been developed to help with the creation of the dataset used for prediction purposes. These plots will be generated for each day in the selected DataFrame, as prepared in the previous preprocessing steps.
 
-- **Time Series Plot**: This plot displays the temporal evolution of the dataset signals, focusing on the time frame from 5:00 to 18:30. It's particularly useful for visually inspecting the patterns and trends in the data across different times of the day.
+- **Time Series Plot**: This plot displays the temporal evolution of the dataset signals, focusing on the time frame from 5:00 to 18:30. It's particularly useful for visually inspecting the patterns and trends in the data across different times of the day. An example for day 1:
 
 ![Time Series Plot](./data/figures/timeseries_plot_day_1.png)
 
-- **Frequency Plot**: This plot involves the FFT of each signal of interest.  It helps in identifying dominant frequencies, periodicities, and any noise components. It can inform in filtering out noise or irrelevant frequencies.
+- **Frequency Plot**: This plot involves the FFT of each signal of interest.  It helps in identifying dominant frequencies, periodicities, and any noise components. It will be used for selecting the kind of filtering needed. An example for day 1:
 
 ![Frequency Plot](./data/figures/frequency_plot_day_1.png)
 
-- **Correlation Plot**: The correlation plot is designed to reveal how the various attribute signals correlate with the target signal. By examining the peaks in this plot, one can determine the optimal time lags for predictive modeling.
+- **Correlation Plot**: The correlation plot is designed to reveal how the various attribute signals correlate with the target signal. By examining the peaks in this plot, one can determine the optimal time lags for predictive modeling. An example for day 1:
 
 ![Correlation Plot](./data/figures/correlation_plot_day_1.png)
 
@@ -145,15 +145,19 @@ Three types of plots have been developed to help with the creation of the datase
 
 Self-Organizing Maps (SOMs) are a type of unsupervised neural network that are effective in mapping high-dimensional data onto a 2-dimensional grid. Each cell of the grid is a neuron that has the same dimensonality as the input data. This feature makes SOMs particularly useful for novelty detection in complex datasets, such as HVAC data.
 
+The output data from the first preprocessing step, after removing all non-working hours, is used for training. This data will be split into training and test sets randomly and then transformed using the mean and standard deviation of the training set.
+
 - **Visualization with PCA**: The results of the SOM, when superimposed with the training data, can be visualized using PCA. This helps in reducing the dimensionality of the data while preserving its essential patterns, making it easier to interpret the SOM output.
 
 ![SOM PCA](./data/figures/som_pca.png)
 
 - **Novelty Detection Metrics**:
 
-   - **KNN Approach**: This method involves using the KNN algorithm to measure the distance of each data point to its neighbors in the SOM grid. The distances indicate how similar a data point is to the trained patterns. Larger distances can signify novel or anomalous data points.  Additionally, there is a filtering based on a minimum count criterion for BMUs.
+   - **K-nearest neighbors (KNN)**: This method involves using the KNN algorithm to measure the distance of each data point to its neighbors in the SOM grid. The distances indicate how similar a data point is to the trained patterns.  Additionally, there is a filtering based on a minimum count criterion for BMUs.
+      - **Interpretation**: Larger distances signify novel or anomalous data points.
 
-   - **Quantization Error (QE)**: This method uses the QE and compares it with the mean QE resulting from the SOM training process. If it is equal or less than the mean, its associated metric is 0. On the other hand, a QE bigger than the distance between the two further matching units, dmax, represents a metric value of 1. Finally, a QE bigger than the mean, and lower than dmax, will result in a metric value between 0 and 1. Its interpretation is: the closer to 1 is the metric, the better.
+   - **Quantization Error (QE)**: This method uses the QE and compares it with the mean QE resulting from the SOM training process. If it is equal or less than the mean, its associated metric is 0. On the other hand, a QE bigger than the distance between the two further matching units, dmax, represents a metric value of 1. Finally, a QE bigger than the mean, and lower than dmax, will result in a metric value between 0 and 1. Moreover, different ways of computing dmax are supported. 
+      - **Interpretation**: The closer the metric is to 1, the less likely it is that the corresponding data point is an outlier.
 
 
 KNN                        |            QE
@@ -164,6 +168,8 @@ KNN                        |            QE
 ## ANFIS data prediction
 
 Adaptive Neuro-Fuzzy Inference System (ANFIS) is a kind of artificial neural network that it is used for prediction and modeling purposes. In the given context, ANFIS is applied for predicting a temperature one hour into the future.
+
+The output data from the second preprocessing step is used for training. This data will be divided into training and test sets, and then transformed using the mean and standard deviation of the training set.
 
 - **Cross-Validation Approach**: To enhance the reliability of the prediction, a cross-validation technique is employed. Specifically, a rotating 1-day testing period is used. This means the model is trained on a continuous dataset, except for a one-day period which is reserved for testing. The testing period then moves across the dataset, ensuring that the model is validated on different segments of the data.
 
