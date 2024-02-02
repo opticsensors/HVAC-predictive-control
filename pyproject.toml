@@ -23,7 +23,7 @@ dependencies = [
     "scikit-learn",
     "scipy",
     "tensorflow",
-
+    "opencv-python",
 ]
 
 [project.urls]

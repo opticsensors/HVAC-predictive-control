@@ -4,10 +4,46 @@ import cv2
 import matplotlib.pyplot as plt
 
 def compute_timeseries(df):
+    """
+    Prepare a dataframe for time series analysis.
+
+    This function resets the index of the given dataframe and drops the 'datetime' column. 
+    It is typically used to prepare the dataframe for time series analysis where 'datetime' 
+    is not needed as a separate column.
+
+    Parameters:
+    - df (pandas.DataFrame): The input dataframe with 'datetime' as one of its columns.
+
+    Returns:
+    - pandas.DataFrame: The dataframe with its index reset and 'datetime' column dropped.
+    """
 
     return df.reset_index().drop('datetime', axis=1)
 
 def timeseries_plot(df, columns, time, grid_size=(3,4), main_title='Time series plot', plot_size=(500,800), margin=300, spacing =435, dpi=200.):
+    """
+    Create a time series plot for specified columns of a dataframe.
+
+    This function generates a grid of time series plots for specified columns of a dataframe. 
+    Each subplot displays the time series of one column. The function allows customization of 
+    various aspects like grid size, plot size, margins, spacing, and dpi for high-quality plots. 
+    Additionally, it computes time-related columns ('minutes', 'hours', 'days') for x-axis representation 
+    and returns the plot as an image in OpenCV format.
+
+    Parameters:
+    - df (pandas.DataFrame): The input dataframe.
+    - columns (list of str): List of column names to be plotted.
+    - time (str): The column name representing time on the x-axis.
+    - grid_size (tuple, optional): Size of the grid for subplots (rows, cols). Default is (3, 4).
+    - main_title (str, optional): Main title of the plot. Default is 'Time series plot'.
+    - plot_size (tuple, optional): Size of the plot (height, width) in pixels. Default is (500, 800).
+    - margin (int, optional): Margin size in pixels. Default is 300.
+    - spacing (int, optional): Spacing between plots in pixels. Default is 435.
+    - dpi (float, optional): Dots per inch for the plot. Default is 200.
+
+    Returns:
+    - numpy.ndarray: An image of the generated plot in OpenCV format.
+    """
 
     rows, cols= grid_size
     max_h, max_w = plot_size
@@ -40,6 +76,26 @@ def timeseries_plot(df, columns, time, grid_size=(3,4), main_title='Time series 
     return cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
 
 def compute_correlations(df, x_columns, y_column, max_shift, circular_shift=True):
+    """
+    Compute correlations between specified columns and a reference column with varying shifts.
+
+    This function calculates the Pearson correlation coefficients between a set of specified 
+    columns (x_columns) and a reference column (y_column) over a range of shifts up to a 
+    maximum specified shift. It supports both circular and non-circular shifting of the 
+    x_columns to compute these correlations. The result is a dataframe where each row 
+    represents the correlations for a specific shift value.
+
+    Parameters:
+    - df (pandas.DataFrame): The input dataframe.
+    - x_columns (list of str): List of column names to be correlated with the reference column.
+    - y_column (list of str): The reference column name.
+    - max_shift (int): The maximum number of shifts for which to compute correlations.
+    - circular_shift (bool, optional): Flag to perform circular shifting. Default is True.
+
+    Returns:
+    - pandas.DataFrame: A dataframe containing correlation coefficients for each shift and column.
+    """
+
     list_of_dict = []
     df_sorted = df[x_columns+y_column]
 
@@ -63,7 +119,29 @@ def compute_correlations(df, x_columns, y_column, max_shift, circular_shift=True
     return df_to_plot
 
 def correlation_plot(df, x_columns, main_title='Correlation plot', x_ticks=8, plot_size=(600,1000), margin=600, spacing =925, dpi=200.):
-    
+    """
+    Create a plot visualizing correlations with varying shifts.
+
+    This function generates a plot to visualize the computed correlation coefficients between 
+    a set of specified columns and a reference column over varying shifts. It allows 
+    customization of the plot size, margins, spacing, and dpi for high-quality visualization. 
+    Additionally, it sets up a secondary x-axis to indicate the sample number corresponding 
+    to the shift values. The plot is returned as an image in OpenCV format.
+
+    Parameters:
+    - df (pandas.DataFrame): The input dataframe containing correlation data.
+    - x_columns (list of str): List of column names whose correlations are to be plotted.
+    - main_title (str, optional): Main title of the plot. Default is 'Correlation plot'.
+    - x_ticks (int, optional): Number of ticks on the x-axis. Default is 8.
+    - plot_size (tuple, optional): Size of the plot (height, width) in pixels. Default is (600, 1000).
+    - margin (int, optional): Margin size in pixels. Default is 600.
+    - spacing (int, optional): Spacing between plots in pixels. Default is 925.
+    - dpi (float, optional): Dots per inch for the plot. Default is 200.
+
+    Returns:
+    - numpy.ndarray: An image of the generated plot in OpenCV format.
+    """
+        
     max_h, max_w = plot_size
     width = (max_w+margin+spacing)/dpi # inches
     height= (max_h+margin+spacing)/dpi
@@ -124,6 +202,24 @@ def correlation_plot(df, x_columns, main_title='Correlation plot', x_ticks=8, pl
     return cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
 
 def compute_frequencies(df, columns, frate, max_freq):
+    """
+    Compute the frequency spectrum for specified columns of a dataframe.
+
+    This function calculates the frequency spectrum using the Fast Fourier Transform (FFT) 
+    for each specified column in the dataframe. It removes the zero frequency component, 
+    focuses on positive frequencies, and limits the frequencies to a specified maximum 
+    frequency. The result is a dataframe containing frequencies and their corresponding 
+    magnitudes for each column.
+
+    Parameters:
+    - df (pandas.DataFrame): The input dataframe.
+    - columns (list of str): List of column names for which the frequency spectrum is computed.
+    - frate (float): The sampling rate of the data (samples per second).
+    - max_freq (float): The maximum frequency to include in the output.
+
+    Returns:
+    - pandas.DataFrame: A dataframe containing frequencies and magnitudes for each specified column.
+    """
     
     dict_to_save={}
     n = df.shape[0]
@@ -144,6 +240,29 @@ def compute_frequencies(df, columns, frate, max_freq):
     return df
 
 def frequency_plot(df, columns, grid_size=(3,4), main_title='Frecuency plot', x_ticks=8, plot_size=(500,800), margin=300, spacing =500, dpi=200.):
+    """
+    Create a plot visualizing the frequency spectrum for specified columns.
+
+    This function generates a grid of frequency spectrum plots for specified columns of a dataframe. 
+    Each subplot displays the frequency spectrum for one column. The function allows customization 
+    of various aspects like grid size, plot size, margins, spacing, and dpi for high-quality plots. 
+    It also sets up a secondary x-axis to indicate the period in hours corresponding to the 
+    frequency values. The plot is returned as an image in OpenCV format.
+
+    Parameters:
+    - df (pandas.DataFrame): The input dataframe containing frequency data.
+    - columns (list of str): List of column names whose frequency spectrums are to be plotted.
+    - grid_size (tuple, optional): Size of the grid for subplots (rows, cols). Default is (3, 4).
+    - main_title (str, optional): Main title of the plot. Default is 'Frequency plot'.
+    - x_ticks (int, optional): Number of ticks on the x-axis. Default is 8.
+    - plot_size (tuple, optional): Size of the plot (height, width) in pixels. Default is (500, 800).
+    - margin (int, optional): Margin size in pixels. Default is 300.
+    - spacing (int, optional): Spacing between plots in pixels. Default is 500.
+    - dpi (float, optional): Dots per inch for the plot. Default is 200.
+
+    Returns:
+    - numpy.ndarray: An image of the generated plot in OpenCV format.
+    """
 
     rows, cols= grid_size
     max_h, max_w = plot_size

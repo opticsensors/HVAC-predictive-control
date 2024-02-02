@@ -1,6 +1,10 @@
 import tensorflow as tf
 
 class ANFIS(tf.keras.Model):
+    """
+    This class implements an Adaptive Neuro-Fuzzy Inference System (ANFIS), which is a kind of artificial neural network 
+    The class extends tf.keras.Model, integrating seamlessly with TensorFlow's model structure.
+    """
     def __init__(self, 
                  n_inputs, 
                  n_rules, 
@@ -11,6 +15,19 @@ class ANFIS(tf.keras.Model):
                  init_method='uniform'
                  ):
         super(ANFIS, self).__init__()
+
+        """Initializes an ANFIS model
+
+        Attributes:
+        - n_inputs (int): The number of input variables.
+        - n_rules (int): The number of fuzzy rules.
+        - learning_rate (float): The learning rate for the optimizer. Default is 1e-2.
+        - mf (str): The membership function type. Supported values are 'gaussmf' for Gaussian and 'gbellmf' for Generalized Bell. Default is 'gaussmf'.
+        - defuzz_method (str): The defuzzification method. Supported values are 'proportional' and 'linear'. Default is 'proportional'.
+        - loss_fun (str): The loss function to use. Supported values are 'mse' for Mean Squared Error and 'huber'. Default is 'mse'.
+        - init_method (str): The method for initializing variables. Supported values are 'uniform' and 'normal'. Default is 'uniform'.
+        """
+
         self.n = n_inputs
         self.m = n_rules
         self.define_variables(mf, defuzz_method, init_method)
@@ -22,6 +39,18 @@ class ANFIS(tf.keras.Model):
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
     def define_variables(self, mf, defuzz_method, init_method):
+        """
+        Define and initialize the variables for the ANFIS model.
+
+        This method initializes the variables required for the ANFIS model based on the specified 
+        membership function, defuzzification method, and initialization method. It creates TensorFlow 
+        variables for the parameters of the membership functions and the defuzzification layer.
+
+        Parameters:
+        - mf (str): The type of membership function ('gaussmf' for Gaussian or 'gbellmf' for Generalized Bell).
+        - defuzz_method (str): The defuzzification method ('proportional' or 'linear').
+        - init_method (str): The method for initializing variables ('uniform' or 'normal').
+        """
 
         def initialize_variable(shape, name, min_val=0, max_val=None):
             if init_method == 'uniform':
@@ -51,7 +80,21 @@ class ANFIS(tf.keras.Model):
 
                 
     def call(self, inputs):
-        
+        """
+        Perform a forward pass of the ANFIS model.
+
+        This method implements the forward pass of the ANFIS model. It computes the membership values 
+        for each input using the defined membership functions, calculates the firing strength of 
+        each rule, normalizes these strengths, and then applies the defuzzification process to 
+        produce the final output.
+
+        Parameters:
+        - inputs (Tensor): The input tensor to the model.
+
+        Returns:
+        - Tensor: The output tensor of the ANFIS model.
+        """
+
         # Layer 1: membership layer
         if self.mf == 'gaussmf':
             membership_values = tf.exp(-0.5 * tf.square(tf.subtract(tf.tile(inputs, (1, self.m)), self.mu)) / tf.square(self.sigma+1e-12))
@@ -89,6 +132,20 @@ class ANFIS(tf.keras.Model):
         return out
 
     def train_step(self, data):
+        """
+        Perform one training step for the ANFIS model.
+
+        This method overrides the train_step method of tf.keras.Model. It computes the loss for the given 
+        data and applies gradients to optimize the model. The loss function used is specified during 
+        the model initialization.
+
+        Parameters:
+        - data (tuple): A tuple containing the input data and the true labels.
+
+        Returns:
+        - dict: A dictionary containing the loss value for the training step.
+        """
+
         x, y_true = data
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)
@@ -102,6 +159,20 @@ class ANFIS(tf.keras.Model):
         return {'loss': loss}
 
     def test_step(self, data):
+        """
+        Evaluate the model on the test data.
+
+        This method overrides the test_step method of tf.keras.Model. It computes the loss for the given 
+        test data without training the model. The loss function used is specified during the model 
+        initialization.
+
+        Parameters:
+        - data (tuple): A tuple containing the input data and the true labels.
+
+        Returns:
+        - dict: A dictionary containing the loss value for the test step.
+        """
+
         x, y_true = data
         y_pred = self(x, training=False)
         if self.loss_fun == 'mse':
