@@ -14,7 +14,7 @@ y_column = ['T_ret']
 
 all_columns = x_columns + y_column
 
-df_index = load_data(data_to_load, header_names=None, index=True)
+df_index = load_data(data_to_load, data_type='interim', header_names=None, index=True)
 df_index = remove_specific_day(df_index, '2022-05-25')
 dfs_day_working_hours = remove_non_working_hours(df_index, strating_hour='05:00', ending_hour='18:30')
 l_data1 = []
