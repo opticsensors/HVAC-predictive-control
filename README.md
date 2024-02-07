@@ -343,7 +343,7 @@ For instance, the obtained results using a dataset of 15 days (the first 14 for 
    data = load_data(data_to_load, data_type='processed')
     ```
 
-3. Cross validation split split:
+3. Cross validation split:
 
     ```python
    x_columns = ['T_ext', 'Solar_irrad', 'T_imp', 
@@ -418,6 +418,132 @@ For instance, the obtained results using a dataset of 15 days (the first 14 for 
    ```
 
 </details>
+
+
+## LSTM data prediction
+
+The Long Short-Term Memory (LSTM) network is a type of recurrent neural network specifically designed to capture long-term dependencies. It is widely used for sequence prediction problems, such as time series forecasting. In this context, the LSTM model is also applied for predicting temperature one hour into the future.
+
+The process involves dividing the output data from the second preprocessing step into training and test sets, normalizing these sets using the training set's mean and standard deviation. Additionally, it organizes the data into sequences based on time order, using past data points.
+
+Following the structure used for the ANFIS model, the LSTM model applies a cross-validation approach and the results are visualized in a similar way. For instance, the predictions using a dataset of 15 days (the first 14 for training and the last one for testing) are shown below:
+
+![LSTM](./data/figures/lstm.png)
+
+
+<details><summary><b>Example of use</b></summary>
+
+1. Import libraries and data:
+
+    ```python
+   import numpy as np
+   import tensorflow as tf
+   from keras.preprocessing.sequence import TimeseriesGenerator
+   from hvac_control.data import load_data
+   from hvac_control.preprocessing import std_scaler_given_parameters
+
+   data_to_load = "gaia_data_1.csv" # larger dataset
+   data = load_data(data_to_load, data_type='processed')
+    ```
+
+3. Cross validation split:
+
+    ```python
+   x_columns = ['T_ext', 'Solar_irrad', 'T_imp', 
+            'BC1_power', 'BC2_power', 'Diff_temp',
+            'Hours_sin', 'Hours_cos', 'T_ret'] 
+
+   y_column = ['T_ret_in_1h']
+
+   day_for_test = 1
+   data_for_train = data[data['Day'] != day_for_test]
+   data_for_test = data[data['Day'] == day_for_test]
+
+   train_x = data_for_train[x_columns]
+   train_y = data_for_train[y_column]
+
+   test_x = data_for_test[x_columns]
+   test_y = data_for_test[y_column]
+
+   ```
+
+4. Data transformation:
+
+    ```python
+   mu_x = train_x.mean(0)
+   s_x = train_x.std(0)
+   mu_y = train_y.mean(0)
+   s_y = train_y.std(0)
+
+   train_x_norm = std_scaler_given_parameters(train_x, mu_x, s_x)
+   test_x_norm = std_scaler_given_parameters(test_x, mu_x, s_x)
+   train_y_norm = std_scaler_given_parameters(train_y, mu_y, s_y)
+   test_y_norm = std_scaler_given_parameters(test_y, mu_y, s_y)
+   ```
+5. Data transformation:
+
+    ```python
+   win_length=45
+   batch_size=32
+   num_features=train_x_norm.shape[1]
+   epochs=150
+
+   train_x_arr=train_x_norm.to_numpy()
+   train_y_arr=train_y_norm.to_numpy()
+   test_x_arr=test_x_norm.to_numpy()
+   test_y_arr=test_y_norm.to_numpy()
+
+   train_generator = TimeseriesGenerator(train_x_arr, train_y_arr, length=win_length, sampling_rate=1, batch_size=batch_size)
+   test_generator = TimeseriesGenerator(test_x_arr, test_y_arr, length=win_length, sampling_rate=1, batch_size=batch_size)
+   ```
+
+5. Train LSTM moodel:
+
+    ```python
+   model = tf.keras.Sequential()
+   model.add(tf.keras.layers.LSTM(128, input_shape=(win_length, num_features), return_sequences=True))
+   model.add(tf.keras.layers.LeakyReLU(alpha=0.5))
+   model.add(tf.keras.layers.LSTM(128, return_sequences=True))
+   model.add(tf.keras.layers.LeakyReLU(alpha=0.5))
+   model.add(tf.keras.layers.Dropout(0.3))
+   model.add(tf.keras.layers.LSTM(64, return_sequences=False))
+   model.add(tf.keras.layers.Dropout(0.3))
+   model.add(tf.keras.layers.Dense(1))
+
+   model.compile(loss=tf.losses.MeanSquaredError(),
+              optimizer=tf.optimizers.Adam(),
+              metrics=[tf.metrics.MeanAbsoluteError()])
+
+   history = model.fit_generator(train_generator, epochs=epochs,
+                                 validation_data=test_generator,
+                                 shuffle=False,)
+
+   model.evaluate_generator(test_generator, verbose=0)
+
+   predictions = model.predict_generator(test_generator)
+   ```
+
+5. Temperature prediction:
+
+    ```python
+   model.evaluate_generator(test_generator, verbose=0)
+   predictions = model.predict_generator(test_generator)
+   predictions.shape[0]
+
+   time = np.arange(0,len(test_y_norm[:-win_length]))
+   a=s_y*test_y_norm+mu_y
+   predicted_data_df = pd.DataFrame()
+   predicted_data_df['T_ret_in_1h']=pd.Series(predictions.ravel())
+   b=s_y*predicted_data_df+mu_y
+   a=a.iloc[:-win_length]
+
+   error_sum = (np.sum(abs(a.to_numpy()-b.to_numpy())))
+   error_avg = (np.mean(abs(a.to_numpy()-b.to_numpy())))
+   error_max = (np.max(abs(a.to_numpy()-b.to_numpy())))
+   ```
+
+</details>
+
 
 [cookiecutter-template]: https://github.com/drivendata/cookiecutter-data-science
 [this-practices]: https://scikit-learn.org/stable/developers/develop.html
