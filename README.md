@@ -244,6 +244,10 @@ KNN                        |            QE
 :-------------------------:|:-------------------------:
 ![KNN](./data/figures/KNN.png)|  ![Quantization Error](./data/figures/QE_worst.png)
 
+- **Visualization of Novelty Detection in Time-Series Data**: The outcomes of novelty detection are effectively identified and assessed using time-series plots. 
+
+![NOVELTY VIS](./data/figures/novelty_vis.png)
+
 <details><summary><b>Example of use</b></summary>
 
 1. Import libraries and data:
@@ -267,13 +271,11 @@ KNN                        |            QE
    dfs_working = remove_non_working_hours(df_working, strating_hour='05:00', ending_hour='17:30')
    df_to_study = pd.concat(dfs_working)
    ```
-3. Random split:
+3. Random split (there isn't a target column here):
 
     ```python
-   X=df_to_study[x_columns].to_numpy()
-   y=df_to_study[y_column].to_numpy()
-   train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.2, random_state=42)
-
+   X=df_to_study[all_columns].to_numpy()
+   train_x, test_x = train_test_split(X, test_size=0.2, random_state=42)
    ```
 
 4. Data transformation:
@@ -304,7 +306,7 @@ KNN                        |            QE
    som_dataset=som.reshape(-1,som.shape[2])
    ```
 
-5. Novelty detection:
+6. Novelty detection:
 
     ```python
    thresh=0.25
